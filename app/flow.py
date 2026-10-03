@@ -89,8 +89,8 @@ def _ptitle(p: dict, limit: int = 24) -> str:
 
 def _pdesc(p: dict) -> str:
     parts = [store.money(p["price"]), p.get("variant") or "", p.get("brand") or ""]
-    if 0 < p["stock"] <= 5:
-        parts.append(f"only {p['stock']} left")
+    if 0 < p["available"] <= 5:
+        parts.append(f"only {p['available']} left")
     return " · ".join(x for x in parts if x)
 
 
@@ -199,8 +199,8 @@ async def categories(c):
 
 
 async def show_products(c, products: list[dict], heading: str, offset: int = 0):
-    available = [p for p in products if p["active"] and p["stock"] > 0]
-    sold_out = [store.product_label(p) for p in products if p["stock"] <= 0]
+    available = [p for p in products if p["active"] and p["available"] > 0]
+    sold_out = [store.product_label(p) for p in products if p["available"] <= 0]
     if not available:
         await _buttons(c, f"{heading}\n\n😕 Sorry, {', '.join(sold_out) or 'these items'} "
                           f"{'is' if len(sold_out) == 1 else 'are'} out of stock right now.\nTry another product name.",
@@ -237,7 +237,8 @@ async def search_and_show(c, text: str):
                           f"Try another name{' (e.g. ' + ', '.join(examples) + ')' if examples else ''} or browse our categories.",
                        [("m:browse", "📂 Categories"), ("m:menu", "🏠 Menu")])
         return
-    await show_products(c, products, f"🔍 Results for *{text.strip()[:60]}*")
+    where = f" at *{db.get_shop()['name']}*" if c["channel"] == "whatsapp" and tenancy.has_many_shops() else ""
+    await show_products(c, products, f"🔍 Results for *{text.strip()[:60]}*{where}")
 
 
 async def ask_quantity(c, product_id: int, data: dict):
@@ -245,14 +246,15 @@ async def ask_quantity(c, product_id: int, data: dict):
     if not p or not p["active"]:
         await _text(c, "😕 That item is no longer available.")
         return await main_menu(c, greet=False)
-    if p["stock"] <= 0:
+    if p["available"] <= 0:
         return await search_and_show(c, p["name"])
     data["product_id"] = product_id
     _save(c["id"], "qty", data)
-    left = f"\n_Only {p['stock']} left_" if p["stock"] <= 5 else ""
+    left = f"\n_Only {p['available']} left_" if p["available"] <= 5 else ""
+    at = f"🏪 *{db.get_shop()['name']}*\n" if c["channel"] == "whatsapp" and tenancy.has_many_shops() else ""
     rows = [{"id": f"q:{n}", "title": str(n), "description": store.money(p["price"] * n)}
-            for n in QTY_CHOICES if n <= p["stock"]]
-    await _list(c, f"*{store.product_label(p)}*\n💰 {store.money(p['price'])} each{left}\n\nHow many would you like?",
+            for n in QTY_CHOICES if n <= p["available"]]
+    await _list(c, f"{at}*{store.product_label(p)}*\n💰 {store.money(p['price'])} each{left}\n\nHow many would you like?",
                 "Choose quantity", rows, "Quantity")
 
 
@@ -340,7 +342,7 @@ async def edit_item(c, product_id: int):
         return await show_cart(c)
     p = store.get_product(product_id)
     rows = [{"id": f"sq:{product_id}:{n}", "title": str(n), "description": store.money(item["unit_price"] * n)}
-            for n in QTY_CHOICES[:9] if n <= max(p["stock"], item["quantity"])]
+            for n in QTY_CHOICES[:9] if n <= max(p["available"], item["quantity"])]
     rows.append({"id": f"sq:{product_id}:0", "title": "❌ Remove from cart"})
     await _list(c, f"*{item['item']}*\nIn cart: {item['quantity']}. Choose the new quantity.", "Set quantity", rows, "Quantity")
 

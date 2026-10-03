@@ -1541,18 +1541,19 @@ class VyaparStoreApp {
           <strong style="color:var(--text-primary); font-size:0.9rem;">${esc(prod.name)}</strong>
           ${prod.description ? `<small style="color:var(--text-muted); display:block; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(prod.description)}</small>` : ''}
         </td>
-        <td><span style="font-size:0.8rem; background:rgba(255,255,255,0.06); padding:2px 8px; border-radius:var(--radius-full);">${esc(prod.category)}</span></td>
+        <td><span style="font-size:0.8rem; background:#f1f5f9; color:#334155; padding:2px 8px; border-radius:var(--radius-full);">${esc(prod.category)}</span></td>
         <td><span style="color:var(--text-secondary);">${esc(prod.brand) || '—'}</span></td>
         <td><span style="font-weight:600;">${esc(prod.variant)}</span></td>
-        <td><strong style="font-family:var(--font-mono); color:#34d399;">${rupees(prod.price)}</strong></td>
+        <td><strong style="font-family:var(--font-mono); color:#047857;">${rupees(prod.price)}</strong></td>
         <td>
           <div class="quantity-stepper">
             <button class="btn-qty-step" data-action="decrement-stock" data-prod-id="${prod.id}">−</button>
             <span class="qty-val-display ${prod.quantity <= 0 ? 'text-rose' : prod.quantity <= LOW_STOCK ? 'text-amber' : ''}">${prod.quantity}</span>
             <button class="btn-qty-step" data-action="increment-stock" data-prod-id="${prod.id}">+</button>
           </div>
+          ${prod.reserved ? `<small class="reserved-note" title="Held for orders that haven't been sent yet">${prod.reserved} on hold · ${Math.max(prod.available, 0)} sellable</small>` : ''}
         </td>
-        <td>${this.renderStockStatusBadge(prod.quantity)}</td>
+        <td>${this.renderStockStatusBadge(prod.available)}</td>
         <td>
           <button class="status-pill ${prod.isAvailable ? 'status-delivered' : 'status-rejected'}" data-action="toggle-available" data-prod-id="${prod.id}"
             title="Click to ${prod.isAvailable ? 'hide from' : 'show on'} WhatsApp" style="cursor:pointer; border:0;">

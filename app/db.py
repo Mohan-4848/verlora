@@ -212,8 +212,10 @@ CREATE INDEX IF NOT EXISTS idx_users_shop ON users(shop_id);
 MIGRATIONS = {
     "customers": {"checkout_msg_id": "INTEGER", "flow_state": "TEXT", "flow_data": "TEXT"},
     "messages": {"meta": "TEXT"},   # JSON: buttons / list options shown with an outgoing message
-    "products": {"description": "TEXT", "deleted": "INTEGER DEFAULT 0", "shop_id": "INTEGER"},
-    "orders": {"shop_id": "INTEGER"},
+    "products": {"description": "TEXT", "deleted": "INTEGER DEFAULT 0", "shop_id": "INTEGER",
+                 "reserved": "INTEGER DEFAULT 0"},          # held by open orders; available = stock - reserved
+    "orders": {"shop_id": "INTEGER",
+               "stock_deducted": "INTEGER DEFAULT 1"},      # 1 = stock already taken off (old orders); new orders start at 0
     "notifications": {"shop_id": "INTEGER"},
 }
 

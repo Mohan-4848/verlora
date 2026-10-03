@@ -60,9 +60,10 @@ Safety rails enforced in code (not just in the prompt):
 
 - **Register:** http://localhost:8000/login.html → *Register your shop* (shop name, business type, owner, email, password). Every shop starts empty. The owner adds real products in *Items / Inventory*, and the bot offers only what is listed and in stock (out-of-stock or hidden items disappear from WhatsApp immediately).
 - **Log in / log out:** email + password; passwords are scrypt-hashed, and sessions are HttpOnly cookies (30 days). Change name, phone and password in *Store Settings → Your account*.
+- **Stock:** placing an order *holds* the units (customers can't buy what's on hold). Your stock count only goes down when the order is **sent out** (Out for delivery) or **delivered**. Rejecting or cancelling releases the hold. Inventory shows "N on hold · M sellable".
 - **Isolation:** every product, customer, order, chat, notification and setting belongs to one shop. Each request is scoped to the logged-in shop (`auth.ShopSessionMiddleware` + `db.shop_id()`), and live updates (SSE) only go to that shop's portal.
 - **WhatsApp routing** (`app/tenancy.py`):
-  - **Shared number (default):** each shop gets a code and a link `wa.me/<number>?text=join <code>` (QR + printable poster in Settings). A new customer with no shop chosen gets a shop list. The choice is remembered per phone number, and the WhatsApp menu offers **🏪 Switch shop**.
+  - **Shared number (default), product-first** (`app/marketplace.py`): the customer just types what they want. Every open shop is searched; if one shop has it they go straight to its picker, and if several do they choose from a list (matches, lowest price, city). While their cart has items or they're checking out, they stay in that shop. "hi" shows a welcome with **Browse shops** / **Continue at <last shop>**. Each shop still has a direct link `wa.me/<number>?text=join <code>` (QR + poster in Settings).
   - **Own number (optional):** in Settings, a shop can connect its own WhatsApp Business phone-number ID + token. Messages to that number go straight to that shop.
 - **Upgrading an old single-store database** turns it into shop #1, and its owner login is written to `data/first_shop_login.txt`.
 

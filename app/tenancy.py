@@ -34,33 +34,33 @@ def forget(phone: str):
     db.run("DELETE FROM wa_sessions WHERE phone=?", (phone,))
 
 
-def resolve(m: dict) -> tuple[int | None, bool]:
-    """→ (shop_id or None, just_joined). None means: ask the customer to pick a shop."""
+def resolve(m: dict) -> tuple[int | None, str | None]:
+    """→ (shop_id or None, how): how = "dedicated" | "joined" | "session" | "single" | None (no shop yet)."""
     phone = m["from"]
     if m.get("to_number_id"):
         dedicated = db.one("SELECT id FROM shops WHERE wa_phone_number_id=? AND active=1", (m["to_number_id"],))
         if dedicated:
-            return dedicated["id"], False
+            return dedicated["id"], "dedicated"
     match = JOIN_RE.match(m.get("text") or "")
     if match:
         shop = db.one("SELECT id FROM shops WHERE slug=? AND active=1", (match.group(1).lower(),))
         if shop:
             remember(phone, shop["id"])
-            return shop["id"], True
+            return shop["id"], "joined"
     if (m.get("reply_id") or "").startswith("shop:"):
         shop = db.one("SELECT id FROM shops WHERE id=? AND active=1", (int(m["reply_id"].split(":")[1]),))
         if shop:
             remember(phone, shop["id"])
-            return shop["id"], True
+            return shop["id"], "joined"
     session = db.one("SELECT w.shop_id FROM wa_sessions w JOIN shops s ON s.id=w.shop_id AND s.active=1 WHERE w.phone=?",
                      (phone,))
     if session:
-        return session["shop_id"], False
+        return session["shop_id"], "session"
     shops = active_shops()
     if len(shops) == 1:
         remember(phone, shops[0]["id"])
-        return shops[0]["id"], True
-    return None, False
+        return shops[0]["id"], "joined"
+    return None, None
 
 
 def has_many_shops() -> bool:

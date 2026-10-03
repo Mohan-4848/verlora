@@ -16,12 +16,18 @@ TRANSITIONS = {
     "out_for_delivery": {"delivered"},
 }
 STOCK_RESTORING = {"rejected", "cancelled"}
+STOCK_DEDUCTING = {"out_for_delivery", "delivered"}   # stock leaves the shop when the order is sent (or delivered)
 
 _STOP = {"a", "an", "the", "of", "and", "some", "pack", "packet", "packets", "please", "want", "need",
          "give", "me", "i", "for", "to", "kg", "g", "gm", "ml", "l", "ltr", "litre", "liter", "x",
          # Hindi / Telugu filler words ("mujhe … chahiye", "naaku … kavali")
          "mujhe", "chahiye", "chaiye", "bhejo", "bhej", "do", "dena", "de", "hai", "kya", "bhaiya", "bhai",
          "naaku", "naku", "kavali", "kaavali", "kavaali", "ivvandi", "pampandi", "kuda", "kooda", "anna", "andi"}
+
+
+# What customers can still buy: physical stock minus what open (not yet dispatched) orders are holding.
+AVAILABLE = "(stock - COALESCE(reserved, 0))"
+PRODUCT_COLS = f"*, {AVAILABLE} AS available"
 
 
 def is_open() -> bool:
@@ -47,45 +53,45 @@ def product_label(p: dict) -> str:
 def public_product(p: dict) -> dict:
     return {"product_id": p["id"], "name": p["name"], "brand": p["brand"], "variant": p["variant"],
             "price": p["price"], "category": p["category"],
-            "availability": "out_of_stock" if p["stock"] <= 0 else ("low_stock" if p["stock"] <= 5 else "in_stock"),
-            "stock_left": p["stock"]}
+            "availability": "out_of_stock" if p["available"] <= 0 else ("low_stock" if p["available"] <= 5 else "in_stock"),
+            "stock_left": p["available"]}
 
 
 # ---------------- catalogue ----------------
 
 def categories() -> list[dict]:
-    return db.all_("""SELECT category, COUNT(*) AS products,
+    return db.all_(f"""SELECT category, COUNT(*) AS products,
                              GROUP_CONCAT(DISTINCT name) AS examples
-                      FROM (SELECT * FROM products WHERE shop_id=? AND active=1 AND stock>0 ORDER BY id)
+                      FROM (SELECT * FROM products WHERE shop_id=? AND active=1 AND {AVAILABLE}>0 ORDER BY id)
                       GROUP BY category ORDER BY category""", (db.shop_id(),))
 
 
 def available_count() -> int:
     """Products customers can order right now (listed, not deleted, in stock)."""
-    return db.one("SELECT COUNT(*) AS n FROM products WHERE shop_id=? AND active=1 AND stock>0", (db.shop_id(),))["n"]
+    return db.one(f"SELECT COUNT(*) AS n FROM products WHERE shop_id=? AND active=1 AND {AVAILABLE}>0", (db.shop_id(),))["n"]
 
 
 def example_names(n: int = 3) -> list[str]:
     """A few real in-stock product names for prompts like "type a product name — e.g. …"."""
-    rows = db.all_("SELECT DISTINCT name FROM products WHERE shop_id=? AND active=1 AND stock>0 ORDER BY RANDOM() LIMIT ?",
+    rows = db.all_(f"SELECT DISTINCT name FROM products WHERE shop_id=? AND active=1 AND {AVAILABLE}>0 ORDER BY RANDOM() LIMIT ?",
                    (db.shop_id(), n))
     return [r["name"] for r in rows]
 
 
 def catalogue_vocabulary(limit: int = 150) -> list[str]:
     """Distinct names of what the shop sells right now — helps the AI map free text onto real products."""
-    rows = db.all_("SELECT DISTINCT name FROM products WHERE shop_id=? AND active=1 AND stock>0 ORDER BY name LIMIT ?",
+    rows = db.all_(f"SELECT DISTINCT name FROM products WHERE shop_id=? AND active=1 AND {AVAILABLE}>0 ORDER BY name LIMIT ?",
                    (db.shop_id(), limit))
     return [r["name"] for r in rows]
 
 
 def products_in_category(category: str) -> list[dict]:
-    return db.all_("SELECT * FROM products WHERE shop_id=? AND active=1 AND lower(category)=lower(?) ORDER BY name, price",
+    return db.all_(f"SELECT {PRODUCT_COLS} FROM products WHERE shop_id=? AND active=1 AND lower(category)=lower(?) ORDER BY name, price",
                    (db.shop_id(), category))
 
 
 def search_products(query: str, category: str | None = None, limit: int = 8) -> list[dict]:
-    rows = db.all_("SELECT * FROM products WHERE shop_id=? AND active=1", (db.shop_id(),))
+    rows = db.all_(f"SELECT {PRODUCT_COLS} FROM products WHERE shop_id=? AND active=1", (db.shop_id(),))
     if category:
         rows = [r for r in rows if r["category"].lower() == category.lower()] or rows
     q = _norm(query)
@@ -116,7 +122,7 @@ def search_products(query: str, category: str | None = None, limit: int = 8) -> 
         if q.strip() and q.strip() in _norm(r["name"]):
             score += 2
         if score > 0:
-            scored.append((score, r["stock"] > 0, r))
+            scored.append((score, r["available"] > 0, r))
     scored.sort(key=lambda x: (-x[0], not x[1], x[2]["name"], x[2]["price"]))
     if scored:
         best = scored[0][0]
@@ -125,7 +131,7 @@ def search_products(query: str, category: str | None = None, limit: int = 8) -> 
 
 
 def get_product(product_id: int) -> dict | None:
-    return db.one("SELECT * FROM products WHERE id=? AND shop_id=?", (product_id, db.shop_id()))
+    return db.one(f"SELECT {PRODUCT_COLS} FROM products WHERE id=? AND shop_id=?", (product_id, db.shop_id()))
 
 
 # ---------------- cart & pricing ----------------
@@ -138,7 +144,8 @@ def delivery_fee_for(subtotal: float) -> float:
 
 
 def cart(customer_id: int) -> dict:
-    rows = db.all_("""SELECT ci.product_id, ci.quantity, p.name, p.variant, p.price, p.stock, p.active
+    rows = db.all_("""SELECT ci.product_id, ci.quantity, p.name, p.variant, p.price,
+                             p.stock - COALESCE(p.reserved, 0) AS available, p.active
                       FROM cart_items ci JOIN products p ON p.id = ci.product_id
                       WHERE ci.customer_id=? ORDER BY ci.added_at""", (customer_id,))
     items, warnings = [], []
@@ -146,10 +153,10 @@ def cart(customer_id: int) -> dict:
         line = round(r["price"] * r["quantity"], 2)
         items.append({"product_id": r["product_id"], "item": product_label(r), "unit_price": r["price"],
                       "quantity": r["quantity"], "line_total": line})
-        if not r["active"] or r["stock"] <= 0:
+        if not r["active"] or r["available"] <= 0:
             warnings.append(f"{product_label(r)} is now out of stock")
-        elif r["stock"] < r["quantity"]:
-            warnings.append(f"Only {r['stock']} left of {product_label(r)}")
+        elif r["available"] < r["quantity"]:
+            warnings.append(f"Only {r['available']} left of {product_label(r)}")
     subtotal = round(sum(i["line_total"] for i in items), 2)
     fee = delivery_fee_for(subtotal)
     s = db.get_settings()
@@ -171,13 +178,13 @@ def set_cart_qty(customer_id: int, product_id: int, quantity: int, add: bool = F
     if new_qty <= 0:
         db.run("DELETE FROM cart_items WHERE customer_id=? AND product_id=?", (customer_id, product_id))
         return {"ok": True, "removed": product_label(p), "cart": cart(customer_id)}
-    if p["stock"] <= 0:
+    if p["available"] <= 0:
         return {"ok": False, "error": f"{product_label(p)} is out of stock.",
                 "alternatives": [public_product(a) for a in search_products(p["name"] + " " + p["category"])
-                                 if a["id"] != p["id"] and a["stock"] > 0][:3]}
-    if new_qty > p["stock"]:
-        return {"ok": False, "error": f"Only {p['stock']} available for {product_label(p)}.",
-                "max_quantity": p["stock"]}
+                                 if a["id"] != p["id"] and a["available"] > 0][:3]}
+    if new_qty > p["available"]:
+        return {"ok": False, "error": f"Only {p['available']} available for {product_label(p)}.",
+                "max_quantity": p["available"]}
     if new_qty > 50:
         return {"ok": False, "error": "Quantity looks too large for a single order (max 50 per item). Please confirm with the customer."}
     db.run("INSERT INTO cart_items(customer_id, product_id, quantity, added_at) VALUES(?,?,?,?) "
@@ -243,7 +250,7 @@ def place_order(customer: dict, require_reply: bool = True) -> dict:
         return {"ok": False, "error": "The customer hasn't replied to the order summary yet. Show it and wait for their confirmation."}
 
     s = db.get_settings()
-    old_stock = {i["product_id"]: get_product(i["product_id"])["stock"] for i in c["items"]}
+    old_available = {i["product_id"]: get_product(i["product_id"])["available"] for i in c["items"]}
     try:
         order_id = _create_order(customer, c, payment, s)
     except OutOfStock as e:
@@ -254,7 +261,7 @@ def place_order(customer: dict, require_reply: bool = True) -> dict:
     notify.add("new_order", f"🔔 New order {order['code']}",
                f"{who} ordered {sum(i['quantity'] for i in order['items'])} item(s) worth {money(order['total'])} "
                f"({'Cash on Delivery' if payment == 'COD' else 'UPI'}).", order_id=order_id, customer_id=customer["id"])
-    for pid, before in old_stock.items():
+    for pid, before in old_available.items():
         notify.stock_changed(get_product(pid), before)
     events.publish("order_new", order)
     events.publish("inventory", {})
@@ -268,14 +275,14 @@ class OutOfStock(Exception):
 def _create_order(customer: dict, c: dict, payment: str, s: dict) -> int:
     with db.tx() as con:
         for i in c["items"]:
-            cur = con.execute("UPDATE products SET stock=stock-?, updated_at=? WHERE id=? AND shop_id=? AND stock>=? "
-                              "AND active=1", (i["quantity"], db.now(), i["product_id"], db.shop_id(), i["quantity"]))
+            cur = con.execute(f"UPDATE products SET reserved=COALESCE(reserved, 0)+?, updated_at=? WHERE id=? AND shop_id=? "
+                              f"AND {AVAILABLE}>=? AND active=1", (i["quantity"], db.now(), i["product_id"], db.shop_id(), i["quantity"]))
             if cur.rowcount != 1:
                 raise OutOfStock(i["item"])   # tx() rolls back the stock already reserved
         cur = con.execute(
             "INSERT INTO orders(shop_id, customer_id, status, subtotal, delivery_fee, total, payment_method, payment_status, "
-            "customer_name, address, landmark, latitude, longitude, eta, created_at, updated_at) "
-            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "customer_name, address, landmark, latitude, longitude, eta, created_at, updated_at, stock_deducted) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)",
             (db.shop_id(), customer["id"], "pending", c["subtotal"], c["delivery_fee"], c["total"], payment, "pending",
              customer.get("name") or customer.get("wa_name"), customer.get("address"), customer.get("landmark"),
              customer.get("latitude"), customer.get("longitude"), s["delivery_eta"], db.now(), db.now()))
@@ -340,10 +347,21 @@ def change_status(order_id: int, new_status: str, actor: str, note: str | None =
                     (new_status, db.now(), eta, new_status, note, order_id))
         con.execute("INSERT INTO order_events(order_id, status, note, actor, created_at) VALUES(?,?,?,?,?)",
                     (order_id, new_status, note, actor, db.now()))
+        items = con.execute("SELECT product_id, quantity FROM order_items WHERE order_id=?", (order_id,)).fetchall()
+        if new_status in STOCK_DEDUCTING and not o["stock_deducted"]:
+            # the goods physically leave the shop → take them off stock and drop the reservation
+            for i in items:
+                con.execute("UPDATE products SET stock=MAX(stock-?, 0), reserved=MAX(COALESCE(reserved, 0)-?, 0), "
+                            "updated_at=? WHERE id=?", (i["quantity"], i["quantity"], db.now(), i["product_id"]))
+            con.execute("UPDATE orders SET stock_deducted=1 WHERE id=?", (order_id,))
         if new_status in STOCK_RESTORING:
-            for i in con.execute("SELECT product_id, quantity FROM order_items WHERE order_id=?", (order_id,)).fetchall():
-                con.execute("UPDATE products SET stock=stock+?, updated_at=? WHERE id=?",
-                            (i["quantity"], db.now(), i["product_id"]))
+            for i in items:
+                if o["stock_deducted"]:   # (orders from before reservations existed) put the stock back
+                    con.execute("UPDATE products SET stock=stock+?, updated_at=? WHERE id=?",
+                                (i["quantity"], db.now(), i["product_id"]))
+                else:                     # release the hold
+                    con.execute("UPDATE products SET reserved=MAX(COALESCE(reserved, 0)-?, 0), updated_at=? WHERE id=?",
+                                (i["quantity"], db.now(), i["product_id"]))
             if o["payment_status"] == "paid":
                 con.execute("UPDATE orders SET payment_status='refund_due' WHERE id=?", (order_id,))
     detail = order_detail(order_id)
@@ -359,7 +377,7 @@ def change_status(order_id: int, new_status: str, actor: str, note: str | None =
     elif new_status == "rejected":
         notify.add("order_rejected", f"❌ {detail['code']} rejected", f"Reason sent to {who}: {note or '—'}", order_id=order_id)
     events.publish("order_updated", detail)
-    if new_status in STOCK_RESTORING:
+    if new_status in STOCK_RESTORING or new_status in STOCK_DEDUCTING:
         events.publish("inventory", {})
     return {"ok": True, "order": detail}
 

@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Streamin
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import agent, auth, config, db, events, flow, llm, messaging, notify, store, tenancy, whatsapp
+from . import agent, auth, config, db, events, flow, llm, marketplace, messaging, notify, store, tenancy, whatsapp
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("main")
@@ -183,17 +183,43 @@ async def set_own_number(body: OwnNumberBody):
 
 # ---------------- inbound pipeline (WhatsApp + simulator) ----------------
 
+_recent_wa_ids: dict[str, None] = {}   # webhook retries can arrive before a shop (and its message log) is known
+
+
+def _first_delivery(wa_id: str | None) -> bool:
+    if not wa_id:
+        return True
+    if wa_id in _recent_wa_ids:
+        return False
+    _recent_wa_ids[wa_id] = None
+    if len(_recent_wa_ids) > 5000:
+        _recent_wa_ids.pop(next(iter(_recent_wa_ids)))
+    return True
+
+
 async def handle_inbound(m: dict, channel: str, shop_id: int | None = None):
     """One inbound message → the right shop → stored → answered. Runs in its own task, so the shop it
     selects stays local to this message."""
     joined = False
+    if channel == "whatsapp" and not _first_delivery(m.get("wa_id")):
+        return
     if shop_id is None:
-        shop_id, joined = tenancy.resolve(m)
-        if shop_id is None:
+        shop_id, how = tenancy.resolve(m)
+        joined = how == "joined"
+        if how in (None, "session") and tenancy.has_many_shops():
+            # shared number, several shops: product first — search every shop, ask which one if several have it
+            if m.get("wa_id"):
+                _spawn(whatsapp.mark_read_typing(m["wa_id"]))
+                m = {**m, "wa_id_read": True}
+            routed = await marketplace.route(m, shop_id)
+            if routed is None:
+                return
+            shop_id, m = routed
+        elif shop_id is None:
             await tenancy.send_shop_picker(m["from"])
             return
     db.use_shop(shop_id)
-    if channel == "whatsapp" and m.get("wa_id"):
+    if channel == "whatsapp" and m.get("wa_id") and not m.get("wa_id_read"):
         _spawn(whatsapp.mark_read_typing(m["wa_id"]))
     if joined:   # "join <code>" or a tap in the shop list → open that shop's welcome menu
         m = {**m, "type": "text", "reply_id": None, "text": "hi", "joined_shop": db.get_shop()["name"]}
@@ -329,7 +355,7 @@ async def stats():
         "orders_today": t["orders"], "revenue_today": t["revenue"],
         "pending": n("SELECT COUNT(*) AS n FROM orders WHERE shop_id=? AND status='pending'"),
         "in_progress": n("SELECT COUNT(*) AS n FROM orders WHERE shop_id=? AND status IN ('accepted','preparing','packed','out_for_delivery')"),
-        "low_stock": n("SELECT COUNT(*) AS n FROM products WHERE shop_id=? AND active=1 AND COALESCE(deleted,0)=0 AND stock<=5"),
+        "low_stock": n("SELECT COUNT(*) AS n FROM products WHERE shop_id=? AND active=1 AND COALESCE(deleted,0)=0 AND stock - COALESCE(reserved,0)<=5"),
         "customers": n("SELECT COUNT(*) AS n FROM customers WHERE shop_id=?"),
         "attention": n("SELECT COUNT(*) AS n FROM customers WHERE shop_id=? AND needs_attention=1"),
     }
@@ -387,7 +413,7 @@ class ProductBody(BaseModel):
 
 @app.get("/api/products", dependencies=[Depends(dashboard_auth)])
 async def list_products():
-    return db.all_("SELECT * FROM products WHERE shop_id=? AND COALESCE(deleted, 0)=0 ORDER BY category, name, price",
+    return db.all_(f"SELECT {store.PRODUCT_COLS} FROM products WHERE shop_id=? AND COALESCE(deleted, 0)=0 ORDER BY category, name, price",
                    (db.shop_id(),))
 
 
@@ -423,7 +449,7 @@ async def update_product(product_id: int, body: ProductBody):
                (*fields.values(), db.now(), product_id, db.shop_id()))
     after = store.get_product(product_id)
     if "stock" in fields:
-        notify.stock_changed(after, before["stock"])
+        notify.stock_changed(after, before["available"])
     events.publish("inventory", {})
     return after
 

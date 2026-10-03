@@ -16,10 +16,10 @@ def add(type_: str, title: str, message: str, order_id: int | None = None,
 
 def stock_changed(product: dict, old_stock: int):
     """Raise low/out-of-stock alerts when a product crosses a threshold."""
-    new = product["stock"]
+    new = product.get("available", product["stock"])
     label = f"{product['name']} ({product['variant']})" if product.get("variant") else product["name"]
     if new <= 0 < old_stock:
         add("out_of_stock", f"❌ Out of stock: {label}",
             "The WhatsApp bot has stopped offering it until you restock.", product_id=product["id"])
     elif new <= LOW_STOCK < old_stock:
-        add("low_stock", f"⚠️ Low stock: {label}", f"Only {new} left in inventory.", product_id=product["id"])
+        add("low_stock", f"⚠️ Low stock: {label}", f"Only {new} left to sell.", product_id=product["id"])

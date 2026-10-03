@@ -109,7 +109,9 @@ export const mapProduct = (p) => ({
   brand: p.brand || '',
   variant: p.variant || '',
   price: p.price,
-  quantity: p.stock,
+  quantity: p.stock,                               // physical stock in the shop
+  reserved: p.reserved || 0,                       // held by open orders until they're sent out
+  available: p.available ?? p.stock,               // what WhatsApp customers can still buy
   isAvailable: !!p.active,
   description: p.description || '',
   keywords: p.keywords || '',
