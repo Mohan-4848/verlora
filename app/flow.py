@@ -5,7 +5,7 @@
        ─► order placed ─► store accepts on the dashboard ─► status updates on WhatsApp
 
 AI is used in exactly one place: when plain database search can't match what the customer typed
-(another language/script, or several items in one message) → _ai_search_terms().
+(another language/script, vague requests, several items in one message) → understand.understand().
 Everything else — prices, stock, cart, checkout, orders — is deterministic code.
 """
 import asyncio
@@ -13,7 +13,7 @@ import json
 import logging
 import re
 
-from . import config, db, events, llm, messaging, notify, store, tenancy
+from . import config, db, events, messaging, notify, store, tenancy, understand
 
 log = logging.getLogger("flow")
 _locks: dict[int, asyncio.Lock] = {}
@@ -28,6 +28,14 @@ STATUS_LABEL = {"pending": "⏳ Waiting for store", "accepted": "✅ Accepted", 
                 "out_for_delivery": "🛵 Out for delivery", "delivered": "🎉 Delivered",
                 "rejected": "❌ Rejected", "cancelled": "🛑 Cancelled"}
 MULTI_ITEM = re.compile(r",|\n|&|\+|\b(and|aur|or|inka|mariyu|also|plus)\b", re.I)
+# splits "2 milk and 1 bread", "milk, eggs, bread", "doodh aur bread" into separate items
+SPLIT_ITEMS = re.compile(r"\s*(?:,|\n|&|\+|\band\b|\baur\b|\binka\b|\bmariyu\b|\balso\b|\bplus\b)\s*", re.I)
+
+
+def split_items(text: str) -> list[str]:
+    return [p.strip() for p in SPLIT_ITEMS.split(text or "") if p and p.strip()]
+
+
 PAGE = 9   # list rows per page (WhatsApp max is 10; the 10th is "More items")
 MAX_PICK = 20   # CheckboxGroup option limit in a WhatsApp Flow
 QTY_CHOICES = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15]
@@ -115,46 +123,36 @@ def _address(c: dict) -> str | None:
 
 # ---------------- search (the only AI touch-point) ----------------
 
-async def _ai_search_terms(text: str) -> list[str]:
-    vocabulary = store.catalogue_vocabulary()
-    if not vocabulary:
-        return []   # nothing in stock → nothing to map to, skip the AI call
-    s = db.get_settings()
-    try:
-        msg, _ = await llm.chat([
-            {"role": "system", "content":
-                f"You help a customer of {s['store_name']} (a {s.get('business_type') or 'local shop'} in India) find products. "
-                "Their message may be in any language or script (English, Hindi, Telugu, Hinglish, Tenglish…). "
-                "Map each item they ask for to the closest product name from this catalogue:\n"
-                + "; ".join(vocabulary) +
-                "\nReply with ONLY a JSON array of short search terms, one per requested item — prefer words from the "
-                "catalogue names. Reply [] if they don't ask for a product."},
-            {"role": "user", "content": text},
-        ], temperature=0)
-        m = re.search(r"\[.*\]", msg.get("content") or "", re.S)
-        terms = json.loads(m.group(0)) if m else []
-        return [str(t).strip() for t in terms if str(t).strip()][:6]
-    except (llm.LLMError, ValueError) as e:
-        log.warning("AI search fallback failed: %s", e)
-        return []
-
-
-async def find_products(text: str) -> list[dict]:
+async def find_products(text: str) -> tuple[list[dict], str]:
+    """→ (products in this shop, intent). Database first; the AI only when that finds nothing or several items are listed."""
     q = text.strip()
-    multi = bool(MULTI_ITEM.search(q))
+    parts = split_items(q)
+    multi = len(parts) > 1
     if not multi:
         hits = store.search_products(q, limit=10)
         if hits:
-            return hits                       # plain DB search was enough — no AI call
+            return hits, "order"              # plain DB search was enough — no AI call
+    else:
+        found, seen = [], set()
+        for part in parts:                    # a list of items: look each one up
+            hits = store.search_products(part, limit=5)
+            if not hits:
+                break
+            found += [p for p in hits if p["id"] not in seen and not seen.add(p["id"])]
+        else:
+            return found[:10], "order"        # every item found without the AI
+    s = db.get_settings()
+    meaning = await understand.understand(q, store.catalogue_vocabulary(),
+                                          f"{s['store_name']} (a {s.get('business_type') or 'local shop'})")
     seen, out = set(), []
-    for term in await _ai_search_terms(q):
+    for term in meaning["items"]:
         for p in store.search_products(term, limit=4):
             if p["id"] not in seen:
                 seen.add(p["id"])
                 out.append(p)
     if not out and multi:
         out = store.search_products(q, limit=10)   # AI unavailable: best-effort plain search
-    return out[:10]
+    return out[:10], meaning["intent"]
 
 
 # ---------------- screens ----------------
@@ -227,9 +225,15 @@ async def show_products(c, products: list[dict], heading: str, offset: int = 0):
 
 
 async def search_and_show(c, text: str):
-    products = await find_products(text)
+    products, intent = await find_products(text)
     if not products:
         _save(c["id"], "search")
+        if intent == "greeting":
+            return await main_menu(c, greet=True)
+        if c["channel"] == "whatsapp" and tenancy.has_many_shops():
+            from . import marketplace          # not here? offer the shops that do have it
+            if await marketplace.offer_elsewhere(c, text):
+                return
         if not store.available_count():
             return await _buttons(c, "🛍️ This shop hasn't added any products yet — please check back soon!",
                                   [("m:store", "💬 Talk to store"), ("m:menu", "🏠 Menu")])

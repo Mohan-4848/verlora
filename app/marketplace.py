@@ -6,11 +6,10 @@ The customer says what they want; we look in every open shop:
   • found nowhere            → say so, offer to browse shops
 While a customer is mid-order (cart not empty, or in checkout) they stay with their current shop.
 """
-import json
 import logging
 import re
 
-from . import config, db, flow, llm, store, tenancy, whatsapp
+from . import config, db, flow, store, tenancy, understand, whatsapp
 
 log = logging.getLogger("marketplace")
 
@@ -44,40 +43,76 @@ def _search_everywhere(query: str) -> list[tuple[dict, list[dict]]]:
         hits = [p for p in _in_shop(shop["id"], store.search_products, query, None, 10) if p["available"] > 0]
         if hits:
             found.append((shop, hits))
+    if found:
+        # drop shops whose best match is much weaker than the best overall
+        # ("something cold to drink": Coca-Cola matches "cold"+"drink", Vicks only "cold")
+        best = max(p["_score"] for _, hits in found for p in hits)
+        found = [(shop, [p for p in hits if p["_score"] >= best * 0.6]) for shop, hits in found]
+        found = [(shop, hits) for shop, hits in found if hits]
     return found
 
 
-async def _ai_terms(text: str, shops: list[dict]) -> list[str]:
-    """Free text in any language → search terms, mapped onto what the open shops actually sell."""
-    vocabulary = sorted({name for s in shops for name in _in_shop(s["id"], store.catalogue_vocabulary, 60)})
-    if not vocabulary:
-        return []
-    try:
-        msg, _ = await llm.chat([
-            {"role": "system", "content":
-                "A customer in India is ordering from local shops on WhatsApp, in any language or script. Map each item "
-                "they ask for to the closest product name from this list:\n" + "; ".join(vocabulary[:250]) +
-                "\nReply with ONLY a JSON array of short search terms, one per requested item. Reply [] if they don't ask for a product."},
-            {"role": "user", "content": text},
-        ], temperature=0)
-        m = re.search(r"\[.*\]", msg.get("content") or "", re.S)
-        return [str(t).strip() for t in (json.loads(m.group(0)) if m else []) if str(t).strip()][:5]
-    except (llm.LLMError, ValueError) as e:
-        log.warning("AI search failed: %s", e)
-        return []
-
-
-async def _find(text: str) -> list[tuple[dict, list[dict]]]:
-    results = [] if flow.MULTI_ITEM.search(text) else _search_everywhere(text)
-    if results:
-        return results
+async def _find(text: str) -> tuple[list[tuple[dict, list[dict]]], str]:
+    """→ ([(shop, products)…], intent). Database first across open shops; the AI only when that finds nothing."""
+    parts = flow.split_items(text)
+    if len(parts) <= 1:
+        results = _search_everywhere(text)
+        if results:
+            return results, "order"
+    else:                                     # a list of items: look each one up in every shop
+        merged = _merge([_search_everywhere(part) for part in parts])
+        if merged is not None:
+            return merged, "order"
+    shops = _open_shops()
+    vocabulary = sorted({name for s in shops for name in _in_shop(s["id"], store.catalogue_vocabulary, 80)})
+    meaning = await understand.understand(text, vocabulary, "local shops on this WhatsApp number", generic=True)
     by_shop: dict[int, tuple[dict, dict]] = {}
-    for term in await _ai_terms(text, _open_shops()):
+    for term in meaning["items"]:
         for shop, hits in _search_everywhere(term):
             entry = by_shop.setdefault(shop["id"], (shop, {}))
             for p in hits:
                 entry[1][p["id"]] = p
+    return [(shop, list(hits.values())) for shop, hits in by_shop.values()], meaning["intent"]
+
+
+def _merge(per_item: list[list[tuple[dict, list[dict]]]]) -> list[tuple[dict, list[dict]]] | None:
+    """Combine per-item search results by shop. None if some item wasn't found anywhere (→ ask the AI)."""
+    if not per_item or any(not r for r in per_item):
+        return None
+    by_shop: dict[int, tuple[dict, dict]] = {}
+    for results in per_item:
+        for shop, hits in results:
+            entry = by_shop.setdefault(shop["id"], (shop, {}))
+            for p in hits:
+                entry[1][p["id"]] = p
     return [(shop, list(hits.values())) for shop, hits in by_shop.values()]
+
+
+def _shop_rows(text: str, results: list[tuple[dict, list[dict]]]) -> list[dict]:
+    results = sorted(results, key=lambda r: min(p["price"] for p in r[1]))[:10]
+    return [{"id": f"mk:shop:{shop['id']}:{text[:80]}", "title": shop["name"][:24],
+             "description": " · ".join(x for x in (
+                 f"{len(hits)} match{'es' if len(hits) > 1 else ''}", f"from {store.money(min(p['price'] for p in hits))}",
+                 shop.get("city")) if x)[:72]}
+            for shop, hits in results]
+
+
+async def offer_elsewhere(c: dict, text: str) -> bool:
+    """Called from inside a shop that doesn't sell the item: list the other shops that do. → True if offered."""
+    here = db.shop_id()
+    results, _ = await _find(text)
+    results = [(shop, hits) for shop, hits in results if shop["id"] != here]
+    if not results:
+        return False
+    cart = store.cart(c["id"])
+    body = f"🔎 *{db.get_shop()['name']}* doesn't have *{text.strip()[:60]}*, but {'this shop does' if len(results) == 1 else f'{len(results)} other shops do'} 👇"
+    if cart["items"]:
+        n = cart["item_count"]
+        body += f"\n\n🧺 Your cart here ({n} item{'s' if n != 1 else ''}) is saved — you can come back to it anytime."
+    from . import messaging
+    await messaging.send_to_customer(c, body, "agent", menu={
+        "button": "Choose shop", "sections": [{"title": "Shops with this item", "rows": _shop_rows(text, results)}]})
+    return True
 
 
 # ---------------- replies sent before a shop is chosen (shared-number credentials) ----------------
@@ -120,15 +155,9 @@ async def _not_found(phone: str, text: str):
 
 
 async def _choose_shop(phone: str, text: str, results: list[tuple[dict, list[dict]]]):
-    results = sorted(results, key=lambda r: min(p["price"] for p in r[1]))[:10]
-    rows = [{"id": f"mk:shop:{shop['id']}:{text[:80]}", "title": shop["name"][:24],
-             "description": " · ".join(x for x in (
-                 f"{len(hits)} match{'es' if len(hits) > 1 else ''}", f"from {store.money(min(p['price'] for p in hits))}",
-                 shop.get("city")) if x)[:72]}
-            for shop, hits in results]
     await _send(whatsapp.send_list, phone,
                 f"🔎 *{text[:60]}* is available at {len(results)} shops.\nWhich shop would you like to order from?",
-                "Choose shop", [{"title": "Shops with this item", "rows": rows}])
+                "Choose shop", [{"title": "Shops with this item", "rows": _shop_rows(text, results)}])
 
 
 # ---------------- routing ----------------
@@ -175,7 +204,10 @@ async def route(m: dict, current: int | None) -> tuple[int, dict] | None:
         await welcome(phone, current)
         return None
 
-    results = await _find(text)
+    results, intent = await _find(text)
+    if not results and intent == "greeting":
+        await welcome(phone, current)
+        return None
     if not results:
         if current:
             return current, m          # let the current shop answer ("not found here", its menu…)

@@ -135,7 +135,7 @@ def search_products(query: str, category: str | None = None, limit: int = 8) -> 
     if scored:
         best = scored[0][0]
         scored = [s for s in scored if s[0] >= best * 0.5]   # drop weak tail matches
-    return [s[2] for s in scored[:limit]]
+    return [{**s[2], "_score": s[0]} for s in scored[:limit]]   # _score lets callers compare matches across shops
 
 
 def get_product(product_id: int) -> dict | None:
