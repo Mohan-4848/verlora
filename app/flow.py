@@ -161,14 +161,15 @@ async def find_products(text: str) -> list[dict]:
 
 async def main_menu(c, greet=True):
     s = db.get_settings()
-    name = c.get("name") or c.get("wa_name")
     cart = store.cart(c["id"])
-    body = (f"👋 Hi{' ' + name if name else ''}! Welcome to *{s['store_name']}* 🛒\n"
-            f"🕒 {s['store_hours']} · Delivery in {s['delivery_eta']}\n\n" if greet else "")
+    body = (f"{config.GREETING}\n\n🏪 *{s['store_name']}* · 🕒 {s['store_hours']} · 🛵 {s['delivery_eta']}\n\n"
+            if greet else "")
     if s.get("welcome_message"):
         body += s["welcome_message"].strip() + "\n\n"
     examples = store.example_names(3)
-    if examples:
+    if examples and greet:
+        body += "Just type what you need — e.g. " + ", ".join(f"_{x}_" for x in examples) + " — or open the menu 👇"
+    elif examples:
         body += ("*What would you like to buy?*\nJust type a product name — e.g. "
                  + ", ".join(f"_{x}_" for x in examples) + " — or open the menu 👇")
     else:

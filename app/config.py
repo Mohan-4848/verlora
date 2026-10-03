@@ -47,6 +47,14 @@ def reload_whatsapp_credentials() -> bool:
     return ACCESS_TOKEN != old
 
 
+# First message a customer gets on WhatsApp
+GREETING = (
+    "Heyyy! 👋😊\n"
+    "Perfect timing — I was just wondering what we could get you today. 😄\n"
+    "Are you looking for something to eat, something to drink, groceries, or maybe something you need "
+    "delivered urgently? 🛵"
+)
+
 # "menu" = button/list driven flow (AI only to understand free-text product requests)
 # "ai"   = fully conversational LLM agent
 FLOW_MODE = env("FLOW_MODE", "menu").lower()

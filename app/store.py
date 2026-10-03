@@ -99,6 +99,7 @@ def search_products(query: str, category: str | None = None, limit: int = 8) -> 
     if not tokens:
         tokens = q.split()
     scored = []
+    any_exact = False   # did any word match a product/keyword word exactly (not just fuzzily)?
     for r in rows:
         name_toks = set(_norm(f"{r['name']} {r['brand'] or ''}").split())
         kw_toks = set(_norm(r["keywords"]).split())
@@ -109,8 +110,10 @@ def search_products(query: str, category: str | None = None, limit: int = 8) -> 
         for t in tokens:
             if t in name_toks:
                 score += 3
+                any_exact = True
             elif t in kw_toks:
                 score += 2.5
+                any_exact = True
             elif t in cat_toks:
                 score += 1
             elif len(t) >= 4 and difflib.get_close_matches(t, vocab, n=1, cutoff=0.8):
@@ -121,8 +124,13 @@ def search_products(query: str, category: str | None = None, limit: int = 8) -> 
                 score += 0.5           # "500ml", "5kg" pick the matching variant
         if q.strip() and q.strip() in _norm(r["name"]):
             score += 2
+            any_exact = True
         if score > 0:
             scored.append((score, r["available"] > 0, r))
+    if len(tokens) >= 2 and not any_exact:
+        # a sentence where no word really matched ("kuch thanda peene ko" ≈ "anda") — fuzzy hits are noise here;
+        # return nothing so the caller can ask the AI what was meant
+        return []
     scored.sort(key=lambda x: (-x[0], not x[1], x[2]["name"], x[2]["price"]))
     if scored:
         best = scored[0][0]

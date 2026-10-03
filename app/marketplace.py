@@ -10,7 +10,7 @@ import json
 import logging
 import re
 
-from . import db, flow, llm, store, tenancy, whatsapp
+from . import config, db, flow, llm, store, tenancy, whatsapp
 
 log = logging.getLogger("marketplace")
 
@@ -103,10 +103,7 @@ def _examples(n: int = 3) -> list[str]:
 
 
 async def welcome(phone: str, current: int | None):
-    examples = _examples()
-    body = "👋 *Welcome!* Order from local shops right here on WhatsApp.\n\n*What would you like to buy?*\n"
-    body += ("Just type a product name — e.g. " + ", ".join(f"_{x}_" for x in examples) + " — and we'll show you which shops have it."
-             if examples else "Just type a product name and we'll show you which shops have it.")
+    body = config.GREETING
     buttons = [("mk:browse", "🏪 Browse shops")]
     shop = db.get_shop(current) if current else None
     if shop:
