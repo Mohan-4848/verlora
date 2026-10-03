@@ -18,8 +18,8 @@ log = logging.getLogger("main")
 app = FastAPI(title="WhatsApp Order Agent for Local Stores")
 db.init()
 app.add_middleware(auth.ShopSessionMiddleware)   # selects the logged-in user's shop for every request
-# the portal can also run on Vite's dev server (npm run dev → :5173) and call this API cross-origin
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+# the portal can also be hosted elsewhere (GitHub Pages, Vite dev server) and call this API cross-origin
+app.add_middleware(CORSMiddleware, allow_origins=config.CORS_ORIGINS,
                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 # ---------------- auth: every /api route below works on the logged-in user's shop only ----------------
@@ -94,7 +94,7 @@ async def register(body: RegisterBody, request: Request):
                f"in stock. Customers order by sending “join {shop['slug']}” on WhatsApp.")
     token = auth.create_session(cur.lastrowid)
     auth._current_user.set(auth.user_for_token(token))
-    resp = JSONResponse(await _me_payload())
+    resp = JSONResponse({**await _me_payload(), "token": token})
     auth.set_cookie(resp, token, _secure(request))
     return resp
 
@@ -109,7 +109,7 @@ async def login(body: LoginBody, request: Request):
     token = auth.create_session(user["id"])
     auth._current_user.set(auth.user_for_token(token))
     db.use_shop(user["shop_id"])
-    resp = JSONResponse(await _me_payload())
+    resp = JSONResponse({**await _me_payload(), "token": token})
     auth.set_cookie(resp, token, _secure(request))
     return resp
 

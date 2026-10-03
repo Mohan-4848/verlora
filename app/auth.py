@@ -84,9 +84,12 @@ class ShopSessionMiddleware:
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
+        # same-site portal → session cookie; portal hosted elsewhere (e.g. GitHub Pages) → "Authorization: Bearer"
         token = None
         for name, value in scope.get("headers", []):
-            if name == b"cookie":
+            if name == b"authorization" and value[:7].lower() == b"bearer ":
+                token = value[7:].decode("latin-1").strip()
+            elif name == b"cookie" and not token:
                 cookie = SimpleCookie()
                 cookie.load(value.decode("latin-1"))
                 if COOKIE in cookie:

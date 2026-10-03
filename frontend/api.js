@@ -1,17 +1,36 @@
 // VyaparAI portal ↔ backend (FastAPI in app/main.py).
 // Converts backend rows into the shapes the portal's views render, and streams live events (SSE).
 
-// Same origin when served by the backend; Vite dev server (npm run dev → :5173) talks to :8000 directly.
-export const API_BASE = location.port === '5173' || location.protocol === 'file:' ? 'http://localhost:8000' : '';
+// Same origin when served by the backend; config.js points a published copy (GitHub Pages) at the backend;
+// Vite dev server (npm run dev → :5173) talks to :8000 directly.
+export const API_BASE = window.VYAPAR_API_BASE
+  || (location.port === '5173' || location.protocol === 'file:' ? 'http://localhost:8000' : '');
+
+// Login token: the backend also sets a cookie, but a portal on another site (GitHub Pages) can't rely on
+// cross-site cookies, so the token is kept here and sent as "Authorization: Bearer".
+const TOKEN_KEY = 'vyapar_token';
+export const saveToken = (t) => { try { if (t) localStorage.setItem(TOKEN_KEY, t); } catch {} };
+export const clearToken = () => { try { localStorage.removeItem(TOKEN_KEY); } catch {} };
+const readToken = () => { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } };
+
+function authHeaders(extra = {}) {
+  const token = readToken();
+  return {
+    'ngrok-skip-browser-warning': '1',          // free ngrok tunnels otherwise answer browsers with a warning page
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  };
+}
 
 async function request(method, path, body) {
   const res = await fetch(API_BASE + path, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers: authHeaders(body ? { 'Content-Type': 'application/json' } : {}),
     body: body ? JSON.stringify(body) : undefined,
     credentials: 'include',
   });
   if (res.status === 401 && !path.startsWith('/api/auth/')) {
+    clearToken();
     location.href = './login.html';            // session expired / logged out → back to login
     throw new Error('Please log in');
   }
@@ -206,19 +225,46 @@ export const storeToSettings = (st) => ({
 
 // ---------------------------------------------------------------- live events
 
+// Server-Sent Events read with fetch (EventSource can't send the Authorization / ngrok headers).
 export function connectEvents(onEvent, onStatus) {
-  let es;
-  const open = () => {
-    es = new EventSource(API_BASE + '/api/events', { withCredentials: true });
-    es.onopen = () => onStatus?.(true);
-    es.onerror = () => onStatus?.(false);   // EventSource reconnects by itself
-    es.onmessage = (e) => {
+  let stopped = false;
+  let controller;
+  const run = async () => {
+    while (!stopped) {
+      controller = new AbortController();
       try {
-        const { event, data } = JSON.parse(e.data);
-        onEvent(event, data);
-      } catch (err) { console.error('bad event', err); }
-    };
+        const res = await fetch(API_BASE + '/api/events', {
+          headers: authHeaders({ Accept: 'text/event-stream' }), credentials: 'include', signal: controller.signal,
+        });
+        if (res.status === 401) { clearToken(); location.href = './login.html'; return; }
+        if (!res.ok || !res.body) throw new Error(`events ${res.status}`);
+        onStatus?.(true);
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let cut;
+          while ((cut = buffer.indexOf('\n\n')) >= 0) {
+            const chunk = buffer.slice(0, cut);
+            buffer = buffer.slice(cut + 2);
+            const data = chunk.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5).trimStart()).join('\n');
+            if (!data) continue;    // comments / pings
+            try {
+              const msg = JSON.parse(data);
+              onEvent(msg.event, msg.data);
+            } catch (err) { console.error('bad event', err); }
+          }
+        }
+      } catch (err) {
+        if (stopped) return;
+      }
+      onStatus?.(false);
+      await new Promise((r) => setTimeout(r, 3000));   // reconnect
+    }
   };
-  open();
-  return () => es?.close();
+  run();
+  return () => { stopped = true; controller?.abort(); };
 }

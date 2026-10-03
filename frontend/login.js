@@ -1,5 +1,5 @@
 // Log in / register-your-shop page.
-import { api } from './api.js';
+import { api, saveToken } from './api.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -46,7 +46,8 @@ $('#loginForm').addEventListener('submit', (e) => {
   const form = e.target;
   submitting(form, async () => {
     try {
-      await api.post('/api/auth/login', { email: $('#loginEmail').value, password: $('#loginPassword').value });
+      const me = await api.post('/api/auth/login', { email: $('#loginEmail').value, password: $('#loginPassword').value });
+      saveToken(me.token);
       location.href = './';
     } catch (err) { showAlert(err.message); }
   });
@@ -78,7 +79,8 @@ $('#registerForm').addEventListener('submit', (e) => {
 
   submitting(form, async () => {
     try {
-      await api.post('/api/auth/register', data);
+      const me = await api.post('/api/auth/register', data);
+      saveToken(me.token);
       location.href = './?welcome=1';
     } catch (err) {
       if (err.errors) Object.entries(err.errors).forEach(([k, v]) => fieldError(form, k, v));

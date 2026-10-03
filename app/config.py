@@ -89,5 +89,9 @@ DEFAULT_SETTINGS = {
     "close_reason": "",
 }
 
+# Extra sites allowed to call the API from a browser (the portal published on GitHub Pages, Vite dev server).
+CORS_ORIGINS = [o.strip().rstrip("/") for o in env(
+    "CORS_ORIGINS", "https://mohan-4848.github.io,http://localhost:5173,http://127.0.0.1:5173").split(",") if o.strip()]
+
 # Built store portal (served at "/"). The classic dashboard stays at /classic.
 FRONTEND_DIR = Path(env("FRONTEND_DIR", str(ROOT / "frontend")))
