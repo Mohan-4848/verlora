@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
 </head>
-<body class="theme-dark">
+<body class="theme-light">
   <!-- Audio for live order notifications -->
   <audio id="orderNotificationAudio" preload="auto">
     <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
@@ -670,7 +670,7 @@
             <div>
               <h2 class="section-title">Items / Inventory Management</h2>
               <p class="section-subtitle">
-                Source of truth for the WhatsApp AI ordering engine. Stock is reserved the moment a WhatsApp order is placed, and restored if it is rejected or cancelled.
+                Source of truth for the WhatsApp AI ordering engine. Units are held for an order when it's placed and come off your stock when it's sent out (or delivered); rejected or cancelled orders release them.
               </p>
             </div>
             <div class="header-action-group">
