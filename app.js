@@ -1,7 +1,7 @@
 // VyaparAI — store portal controller, wired to the live WhatsApp ordering backend.
 // All data (store profile, catalogue, orders, notifications, chats) comes from the API; SSE keeps it live.
 import {
-  api, esc, rupees, waToHtml, initials, todayStr, addDays, timeAgo,
+  api, clearToken, esc, rupees, waToHtml, initials, todayStr, addDays, timeAgo,
   mapProduct, mapOrder, mapNotification, mapStore, storeToSettings, groupOrdersByDate,
   STATUS_TO_API, connectEvents,
 } from './api.js';
@@ -791,6 +791,7 @@ class VyaparStoreApp {
 
   async logout() {
     try { await api.post('/api/auth/logout'); } catch {}
+    clearToken();
     location.href = './login.html';
   }
 
