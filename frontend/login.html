@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VyaparAI — Log in or register your shop</title>
+  <meta name="description" content="Put your local shop on WhatsApp ordering in two minutes." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body class="theme-dark auth-page">
+  <div class="auth-layout">
+
+    <!-- Brand / pitch -->
+    <section class="auth-hero">
+      <div class="auth-brand">
+        <div class="auth-logo">V</div>
+        <div>
+          <div class="auth-brand-name">VyaparAI</div>
+          <div class="auth-brand-sub">WhatsApp ordering for local shops</div>
+        </div>
+      </div>
+
+      <h1 class="auth-headline">Your shop on WhatsApp<br><span>in two minutes.</span></h1>
+      <p class="auth-lead">Customers browse, tick items and pay on WhatsApp. You accept orders, track stock and chat — all from one portal.</p>
+
+      <ul class="auth-features">
+        <li><span>🛒</span><div><strong>Tap-to-order bot</strong>Search, tick several items, COD or UPI, live order updates.</div></li>
+        <li><span>📦</span><div><strong>Your own catalogue</strong>Start with sample products for your trade, then edit prices &amp; stock.</div></li>
+        <li><span>🔒</span><div><strong>Every shop is separate</strong>Your orders, customers and chats are visible only to you.</div></li>
+      </ul>
+
+      <div class="auth-phone" aria-hidden="true">
+        <div class="auth-phone-head"><span class="wa-avatar">RK</span><div><b>Ravi Kirana</b><small>online</small></div></div>
+        <div class="auth-bubble in">join ravi-kirana</div>
+        <div class="auth-bubble out">👋 Welcome to <b>Ravi Kirana</b>!<br>What would you like to buy?</div>
+        <div class="auth-bubble in">milk</div>
+        <div class="auth-bubble out">☑️ Amul Taaza 1 L — ₹54<br>☑️ Milk Bread — ₹45<br><span class="auth-cta">Add to cart</span></div>
+      </div>
+    </section>
+
+    <!-- Forms -->
+    <section class="auth-panel">
+      <div class="auth-card">
+        <div class="auth-tabs" role="tablist">
+          <button class="auth-tab active" data-tab="login" role="tab">Log in</button>
+          <button class="auth-tab" data-tab="register" role="tab">Register your shop</button>
+        </div>
+
+        <div class="auth-alert" id="authAlert" role="alert" hidden></div>
+
+        <!-- LOGIN -->
+        <form class="auth-form" id="loginForm" novalidate>
+          <h2 class="auth-title">Welcome back 👋</h2>
+          <p class="auth-sub">Log in to manage your shop's WhatsApp orders.</p>
+          <div class="form-group">
+            <label class="form-label" for="loginEmail">Email</label>
+            <input class="form-input" id="loginEmail" name="email" type="email" autocomplete="email" required placeholder="you@shop.com" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="loginPassword">Password</label>
+            <div class="pw-wrap">
+              <input class="form-input" id="loginPassword" name="password" type="password" autocomplete="current-password" required placeholder="••••••••" />
+              <button type="button" class="pw-toggle" data-toggle="loginPassword" aria-label="Show password">👁️</button>
+            </div>
+          </div>
+          <button class="btn btn-primary auth-submit" type="submit"><span>Log in</span></button>
+          <p class="auth-switch">New to VyaparAI? <button type="button" class="btn-link" data-goto="register">Register your shop →</button></p>
+        </form>
+
+        <!-- REGISTER -->
+        <form class="auth-form" id="registerForm" novalidate hidden>
+          <h2 class="auth-title">Register your shop 🏪</h2>
+          <p class="auth-sub">Free. You'll get your own portal and a WhatsApp ordering link — then add your products.</p>
+
+          <div class="auth-section-label">Your shop</div>
+          <div class="form-grid">
+            <div class="form-group col-span-2">
+              <label class="form-label required" for="regShopName">Shop name</label>
+              <input class="form-input" id="regShopName" name="shop_name" required placeholder="e.g. Ravi Kirana Store" />
+              <span class="field-error" data-err="shop_name"></span>
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label" for="regType">Business type</label>
+              <select class="form-select" id="regType" name="business_type">
+                <option>Kirana / General Store</option>
+                <option>Grocery Store</option>
+                <option>Restaurant</option>
+                <option>Café</option>
+                <option>Bakery</option>
+                <option>Medical Shop</option>
+                <option>Clothing Store</option>
+                <option>Electronics Store</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="regCity">City</label>
+              <input class="form-input" id="regCity" name="city" placeholder="Hyderabad" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="regPincode">PIN code</label>
+              <input class="form-input" id="regPincode" name="pincode" inputmode="numeric" maxlength="6" placeholder="500100" />
+              <span class="field-error" data-err="pincode"></span>
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label" for="regAddress">Shop address</label>
+              <input class="form-input" id="regAddress" name="address" placeholder="Shop no., street, area" />
+            </div>
+          </div>
+
+          <div class="auth-section-label">Your account</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label required" for="regOwner">Your name</label>
+              <input class="form-input" id="regOwner" name="owner_name" autocomplete="name" required placeholder="Ravi Kumar" />
+              <span class="field-error" data-err="owner_name"></span>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="regPhone">Mobile</label>
+              <input class="form-input" id="regPhone" name="phone" type="tel" autocomplete="tel" placeholder="+91 98765 43210" />
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label required" for="regEmail">Email (used to log in)</label>
+              <input class="form-input" id="regEmail" name="email" type="email" autocomplete="email" required placeholder="you@shop.com" />
+              <span class="field-error" data-err="email"></span>
+            </div>
+            <div class="form-group">
+              <label class="form-label required" for="regPassword">Password</label>
+              <div class="pw-wrap">
+                <input class="form-input" id="regPassword" name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="8+ characters" />
+                <button type="button" class="pw-toggle" data-toggle="regPassword" aria-label="Show password">👁️</button>
+              </div>
+              <div class="pw-meter"><span id="pwMeter"></span></div>
+              <span class="field-error" data-err="password"></span>
+            </div>
+            <div class="form-group">
+              <label class="form-label required" for="regPassword2">Confirm password</label>
+              <input class="form-input" id="regPassword2" type="password" autocomplete="new-password" required placeholder="Repeat password" />
+              <span class="field-error" data-err="password2"></span>
+            </div>
+          </div>
+
+          <button class="btn btn-primary auth-submit" type="submit"><span>Create my shop</span></button>
+          <p class="auth-switch">Already registered? <button type="button" class="btn-link" data-goto="login">Log in →</button></p>
+        </form>
+      </div>
+      <p class="auth-foot">🔒 Passwords are stored hashed (scrypt). Each shop's data is isolated.</p>
+    </section>
+  </div>
+
+  <script type="module" src="./login.js"></script>
+</body>
+</html>

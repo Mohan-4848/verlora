@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Store Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">🛒</div>
+      <div><div class="brand-name" id="storeName">Store</div><div class="brand-sub">WhatsApp order console</div></div>
+    </div>
+    <nav>
+      <a data-view="orders" class="active">📦 <span>Orders</span><b class="count" id="navPending"></b></a>
+      <a data-view="chats">💬 <span>Chats</span><b class="count warn" id="navAttention"></b></a>
+      <a data-view="inventory">🏷️ <span>Inventory</span><b class="count warn" id="navLow"></b></a>
+      <a data-view="simulator">📱 <span>Simulator</span></a>
+      <a data-view="settings">⚙️ <span>Settings</span></a>
+    </nav>
+    <div class="live"><span class="dot" id="liveDot"></span><span id="liveText">Connecting…</span></div>
+  </aside>
+
+  <main>
+    <!-- ORDERS -->
+    <section id="view-orders" class="view active">
+      <header class="page-head"><h1>Orders</h1></header>
+      <div class="stats" id="stats"></div>
+      <div class="chips" id="orderFilters">
+        <button data-f="active" class="on">Active</button>
+        <button data-f="pending">New</button>
+        <button data-f="accepted">Accepted</button>
+        <button data-f="packed">Packed</button>
+        <button data-f="out_for_delivery">Out for delivery</button>
+        <button data-f="delivered">Delivered</button>
+        <button data-f="closed">Rejected / Cancelled</button>
+        <button data-f="all">All</button>
+      </div>
+      <div class="orders" id="orders"></div>
+    </section>
+
+    <!-- CHATS -->
+    <section id="view-chats" class="view">
+      <div class="chat-layout">
+        <div class="chat-list">
+          <div class="chat-list-head"><input id="chatSearch" placeholder="Search customers…"></div>
+          <div id="customers"></div>
+        </div>
+        <div class="chat-pane" id="chatPane">
+          <div class="empty">Select a conversation</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INVENTORY -->
+    <section id="view-inventory" class="view">
+      <header class="page-head">
+        <h1>Inventory</h1>
+        <div class="row">
+          <input id="invSearch" placeholder="Search products…">
+          <button class="btn primary" id="addProductBtn">+ Add product</button>
+        </div>
+      </header>
+      <form id="addProduct" class="card add-form hidden">
+        <input name="name" placeholder="Name *" required>
+        <input name="brand" placeholder="Brand">
+        <input name="category" placeholder="Category *" required list="catList">
+        <datalist id="catList"></datalist>
+        <input name="variant" placeholder="Variant (e.g. 1 kg)">
+        <input name="price" type="number" step="0.5" placeholder="Price ₹ *" required>
+        <input name="stock" type="number" placeholder="Stock">
+        <input name="keywords" placeholder="Keywords (doodh, paalu…)" class="wide">
+        <button class="btn primary">Save</button>
+      </form>
+      <div class="card table-wrap">
+        <table class="inv">
+          <thead><tr><th>Product</th><th>Variant</th><th>Category</th><th>Price ₹</th><th>Stock</th><th>Listed</th></tr></thead>
+          <tbody id="inventory"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SIMULATOR -->
+    <section id="view-simulator" class="view">
+      <header class="page-head"><h1>WhatsApp simulator</h1>
+        <p class="muted">Chat with the same WhatsApp bot without a phone. Taps, cart and orders are real.</p></header>
+      <div class="sim-wrap">
+        <div class="phone">
+          <div class="phone-head">
+            <div class="avatar">🛒</div>
+            <div><div class="pn" id="simStore">Store</div><div class="ps">online</div></div>
+          </div>
+          <div class="phone-body" id="simMessages"></div>
+          <div class="sim-typing hidden" id="simTyping">typing…</div>
+          <form class="phone-input" id="simForm">
+            <button type="button" class="icon" id="simLoc" title="Share location">📍</button>
+            <input id="simText" placeholder="Type a message" autocomplete="off">
+            <button class="send">➤</button>
+          </form>
+        </div>
+        <div class="sim-side card">
+          <label>Customer phone<input id="simPhone" value="sim-9000000001"></label>
+          <label>WhatsApp name<input id="simName" value="Ravi Kumar"></label>
+          <div class="muted small">Try these:</div>
+          <div class="suggest" id="simSuggest"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-settings" class="view">
+      <header class="page-head"><h1>Store settings</h1></header>
+      <form id="settingsForm" class="card settings"></form>
+    </section>
+  </main>
+</div>
+<div id="toasts"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

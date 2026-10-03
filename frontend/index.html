@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VyaparAI — WhatsApp AI Store & Staff Portal</title>
+  <meta name="description" content="AI-Powered WhatsApp Ordering Platform Staff & Owner Management Portal for Local Indian Businesses." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="theme-dark">
+  <!-- Audio for live order notifications -->
+  <audio id="orderNotificationAudio" preload="auto">
+    <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+  </audio>
+
+  <!-- APP WRAPPER -->
+  <div class="app-layout" id="appLayout">
+    
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-wrapper">
+          <div class="brand-avatar" id="sidebarBrandAvatar">
+            <span class="brand-avatar-text">SL</span>
+          </div>
+          <div class="brand-info">
+            <h2 class="brand-title" id="sidebarStoreName">…</h2>
+            <span class="brand-badge" id="sidebarBusinessType">Kirana / General Store</span>
+          </div>
+        </div>
+        <button class="sidebar-toggle-btn mobile-only" id="sidebarCloseBtn" aria-label="Close sidebar">✕</button>
+      </div>
+
+      <!-- AI WhatsApp Agent Live Status Widget -->
+      <div class="whatsapp-agent-pill" id="whatsappAgentPill" title="WhatsApp AI Ordering Agent Status">
+        <div class="pill-indicator">
+          <span class="live-dot pulse-green"></span>
+          <span class="pill-text" id="aiAgentStatusText">WhatsApp AI: Accepting Orders</span>
+        </div>
+        <span class="pill-subtext" id="aiAgentSubtext">Catalog Synced • Live</span>
+      </div>
+
+      <!-- Navigation links -->
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-view="dashboard" id="nav-dashboard">
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect></svg>
+          </span>
+          <span class="nav-label">Dashboard</span>
+        </button>
+
+        <button class="nav-item" data-view="orders" id="nav-orders">
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="m9 14 2 2 4-4"></path></svg>
+          </span>
+          <span class="nav-label">Orders</span>
+          <span class="nav-badge order-badge" id="activeOrdersCountBadge">0</span>
+        </button>
+
+        <button class="nav-item" data-view="chats" id="nav-chats">
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          </span>
+          <span class="nav-label">Customer Chats</span>
+          <span class="nav-badge alert-badge" id="chatAttentionBadge" style="display:none;">0</span>
+        </button>
+
+        <button class="nav-item highlight-nav" data-view="upload-details" id="nav-upload-details">
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          </span>
+          <span class="nav-label">Upload Details</span>
+          <span class="setup-badge">Setup</span>
+        </button>
+
+        <button class="nav-item" data-view="inventory" id="nav-inventory">
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"></path><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>
+          </span>
+          <span class="nav-label">Items / Inventory</span>
+          <span class="nav-badge alert-badge" id="lowStockCountBadge" style="display:none;">0</span>
+        </button>
+
+        <button class="nav-item" data-view="analysis" id="nav-analysis">
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>
+          </span>
+          <span class="nav-label">Analysis</span>
+        </button>
+
+        <button class="nav-item" data-view="notifications" id="nav-notifications">
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+          </span>
+          <span class="nav-label">Notifications</span>
+          <span class="nav-badge notif-badge" id="sidebarNotifBadge">0</span>
+        </button>
+
+        <button class="nav-item" data-view="settings" id="nav-settings">
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </span>
+          <span class="nav-label">Store Settings</span>
+        </button>
+      </nav>
+
+      <!-- Try the bot as a customer -->
+      <div class="sidebar-demo-box">
+        <div class="demo-box-header">
+          <span class="demo-icon">💬</span>
+          <span class="demo-title">Test your bot</span>
+        </div>
+        <p class="demo-desc">Chat with your live WhatsApp bot as a customer — it shows exactly what's in stock</p>
+        <div class="demo-actions">
+          <button class="btn-demo" id="btnOpenWhatsAppSimulator">
+            <span class="demo-btn-icon">📱</span>
+            <span>WhatsApp Bot Preview</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Staff footer profile -->
+      <div class="sidebar-footer">
+        <div class="user-profile">
+          <div class="user-avatar" id="userAvatar">··</div>
+          <div class="user-details">
+            <span class="user-name" id="userName">Loading…</span>
+            <span class="user-role" id="userRole">Shop owner</span>
+          </div>
+          <button class="btn-logout" id="btnLogout" title="Log out">Log out</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN WRAPPER -->
+    <div class="main-wrapper">
+      
+      <!-- TOP NAVIGATION BAR -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="btn-icon mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation menu">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+
+          <!-- Store Title & Business Type in Topbar -->
+          <div class="topbar-store-meta">
+            <div class="store-badge-row">
+              <h1 class="topbar-store-name" id="topbarStoreName">…</h1>
+              <span class="type-pill" id="topbarBusinessType">Kirana / General Store</span>
+            </div>
+            <span class="topbar-store-location" id="topbarStoreLocation"></span>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <!-- Calendar / Date Filter -->
+          <div class="date-selector-wrapper">
+            <label for="globalDatePicker" class="sr-only">Select Business Date</label>
+            <div class="custom-date-pill">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              <select id="globalDatePicker" class="date-select">
+                <option>Loading…</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- STORE STATUS TOGGLE CONTROL (High Visibility) -->
+          <div class="store-status-control" id="storeStatusContainer">
+            <!-- Rendered dynamically -->
+          </div>
+
+          <!-- Notification Bell -->
+          <div class="notification-bell-wrapper">
+            <button class="btn-icon bell-btn" id="bellToggleBtn" title="View Notifications">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+              <span class="bell-badge" id="bellBadge" style="display:none;">0</span>
+            </button>
+            
+            <!-- Quick Notification Dropdown -->
+            <div class="notif-dropdown" id="notifDropdown">
+              <div class="notif-dropdown-header">
+                <h3>Notifications</h3>
+                <button class="btn-link" id="markAllReadBtnTop">Mark all as read</button>
+              </div>
+              <div class="notif-dropdown-list" id="quickNotifList">
+                <!-- Injected via JS -->
+              </div>
+              <div class="notif-dropdown-footer">
+                <button class="btn-link view-all-notif-btn" id="viewAllNotifsBtn">View All Notifications →</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Staff / Owner Profile -->
+          <div class="staff-profile-chip">
+            <div class="staff-avatar" id="staffAvatar">··</div>
+            <div class="staff-info-compact">
+              <span class="staff-name" id="staffName">…</span>
+              <span class="staff-label">Owner Portal</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- CRITICAL STORE OFFLINE BANNER (Visible when closed) -->
+      <div class="store-offline-banner" id="storeOfflineBanner" style="display:none;">
+        <div class="offline-banner-content">
+          <span class="banner-status-tag">🔴 STORE IS OFFLINE</span>
+          <span class="banner-reason" id="bannerReasonText">Reason: Too many orders — taking some time to process</span>
+          <span class="banner-desc">WhatsApp AI Agent is paused. Customers cannot place new orders, but existing orders can be processed.</span>
+        </div>
+        <button class="btn btn-sm btn-success" id="bannerReopenBtn">🟢 Reopen Store Now</button>
+      </div>
+
+      <!-- MAIN CONTENT AREA FOR VIEWS -->
+      <main class="main-content" id="mainContent">
+
+        <!-- ======================================================= -->
+        <!-- VIEW 1: DASHBOARD HOME -->
+        <!-- ======================================================= -->
+        <section class="view-panel active" id="view-dashboard">
+          
+          <!-- Top Welcome / Hackathon Banner -->
+          <div class="dashboard-hero-card">
+            <div class="hero-left">
+              <div class="hero-badge">🚀 AI WHATSAPP ORDERING PLATFORM</div>
+              <h2 class="hero-title" id="heroStoreTitle">Welcome</h2>
+              <p class="hero-subtitle">
+                Live portal connected to your WhatsApp ordering bot. New orders, stock and payments update here in real time.
+              </p>
+            </div>
+            <div class="hero-right">
+              <div class="ai-status-card">
+                <div class="ai-status-header">
+                  <div class="ai-icon">🤖</div>
+                  <div>
+                    <div class="ai-title">WhatsApp AI Assistant</div>
+                    <div class="ai-channel" id="aiChannelNumber">WhatsApp ordering bot</div>
+                    <div class="share-link-row">
+                      <span class="join-code" id="heroJoinCode">join …</span>
+                      <button class="btn btn-outline btn-sm" id="btnCopyJoinLink" title="Copy your WhatsApp ordering link">🔗 Copy link</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="ai-status-metrics">
+                  <div class="metric-mini">
+                    <span class="metric-val" id="miniAiStatus">ONLINE</span>
+                    <span class="metric-lbl">Bot Status</span>
+                  </div>
+                  <div class="metric-mini">
+                    <span class="metric-val" id="miniAvgResponse">0</span>
+                    <span class="metric-lbl">Customers</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Primary Metric Cards -->
+          <div class="metric-grid">
+            <!-- Today's Orders -->
+            <div class="metric-card" id="cardTodayOrders">
+              <div class="metric-icon-wrap bg-blue-subtle">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><path d="M3 6h18"></path><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+              </div>
+              <div class="metric-content">
+                <span class="metric-card-label" id="lblOrdersMetric">Orders Today</span>
+                <div class="metric-number-row">
+                  <span class="metric-card-value" id="valTodayOrders">0</span>
+                  <span class="metric-trend positive" id="trendOrders">—</span>
+                </div>
+                <span class="metric-sub" id="subTodayOrders"></span>
+              </div>
+            </div>
+
+            <!-- Today's Revenue -->
+            <div class="metric-card clickable-card" id="cardTodayRevenue" title="Click to view detailed revenue breakdown">
+              <div class="metric-icon-wrap bg-emerald-subtle">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+              </div>
+              <div class="metric-content">
+                <div class="revenue-label-row">
+                  <span class="metric-card-label" id="lblRevenueMetric">Today's Revenue So Far</span>
+                  <span class="tag-live" id="tagLiveRevenue">LIVE</span>
+                </div>
+                <div class="metric-number-row">
+                  <span class="metric-card-value highlight-amount" id="valTodayRevenue">₹0</span>
+                  <span class="metric-trend positive" id="revAvgPerOrder">—</span>
+                </div>
+                <span class="metric-sub text-link" id="subTodayRevenue">Click for revenue breakdown →</span>
+              </div>
+            </div>
+
+            <!-- Total Products / Items -->
+            <div class="metric-card" id="cardTotalProducts">
+              <div class="metric-icon-wrap bg-purple-subtle">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"></path><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path></svg>
+              </div>
+              <div class="metric-content">
+                <span class="metric-card-label">Total Products</span>
+                <div class="metric-number-row">
+                  <span class="metric-card-value" id="valTotalProducts">0</span>
+                  <span class="metric-chip chip-success" id="chipAvailableProducts"></span>
+                </div>
+                <span class="metric-sub" id="subInventoryAlerts"></span>
+              </div>
+            </div>
+
+            <!-- Current Store Status -->
+            <div class="metric-card" id="cardStoreStatus">
+              <div class="metric-icon-wrap" id="statusCardIconWrap">
+                <span class="status-indicator-dot pulse-green"></span>
+              </div>
+              <div class="metric-content">
+                <span class="metric-card-label">Current Store Status</span>
+                <div class="metric-number-row">
+                  <span class="metric-card-value text-emerald" id="valStoreStatus">STORE OPEN</span>
+                </div>
+                <span class="metric-sub" id="subStoreStatus">Customers can order now via WhatsApp</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Middle Split Section: Recent Orders & Quick Alerts -->
+          <div class="dashboard-split-grid">
+            
+            <!-- Left: Recent Incoming Orders (Priority Queue) -->
+            <div class="dashboard-box recent-orders-box">
+              <div class="box-header">
+                <div class="box-title-group">
+                  <h3 class="box-title">Recent Incoming Orders</h3>
+                  <span class="box-subtitle">Ordered by arrival time (FIFO priority queue)</span>
+                </div>
+                <div class="box-header-actions">
+                  <button class="btn btn-outline btn-sm" id="btnGoOrdersView">View All Orders →</button>
+                  <button class="btn btn-primary btn-sm" id="btnGoAddProduct"><span>+ Add products</span></button>
+                </div>
+              </div>
+              
+              <div class="table-responsive">
+                <table class="data-table" id="dashboardRecentOrdersTable">
+                  <thead>
+                    <tr>
+                      <th>Order</th>
+                      <th>Customer</th>
+                      <th>Items</th>
+                      <th>Amount</th>
+                      <th>Time</th>
+                      <th>Status</th>
+                      <th>Quick Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dashboardRecentOrdersTbody">
+                    <!-- Populated via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Right: Low-Stock Alerts & Recent Notifications -->
+            <div class="dashboard-side-col">
+              
+              <!-- Low-Stock Alerts Card -->
+              <div class="dashboard-box alert-box">
+                <div class="box-header">
+                  <div class="box-title-group">
+                    <h3 class="box-title text-amber">
+                      <span class="icon-warning">⚠️</span> Low Stock Alerts
+                    </h3>
+                    <span class="box-subtitle">Auto-syncs with WhatsApp AI bot</span>
+                  </div>
+                  <button class="btn-link" id="btnGoInventoryView">Manage →</button>
+                </div>
+                <div class="low-stock-list" id="dashboardLowStockList">
+                  <!-- Populated via JS -->
+                </div>
+              </div>
+
+              <!-- Recent Notifications Feed -->
+              <div class="dashboard-box notif-feed-box">
+                <div class="box-header">
+                  <div class="box-title-group">
+                    <h3 class="box-title">Recent Notifications</h3>
+                    <span class="box-subtitle">Activity stream</span>
+                  </div>
+                  <button class="btn-link" id="btnGoNotifsView">View All</button>
+                </div>
+                <div class="recent-notif-feed" id="dashboardRecentNotifFeed">
+                  <!-- Populated via JS -->
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        <!-- ======================================================= -->
+        <!-- VIEW 2: ORDERS (MAIN FEATURE) -->
+        <!-- ======================================================= -->
+        <section class="view-panel" id="view-orders">
+          
+          <div class="section-header-row">
+            <div>
+              <h2 class="section-title">Orders Management</h2>
+              <p class="section-subtitle">
+                Live priority queue from WhatsApp. First order received is processed first — every status change messages the customer.
+              </p>
+            </div>
+            <div class="header-action-group">
+              <!-- Orders Filter Tabs -->
+              <div class="pill-tabs" id="orderFilterTabs">
+                <button class="pill-tab active" data-filter="all">All Orders (<span id="filterCountAll">0</span>)</button>
+                <button class="pill-tab" data-filter="active">Active Priority Queue (<span id="filterCountActive">0</span>)</button>
+                <button class="pill-tab" data-filter="new">New (<span id="filterCountNew">0</span>)</button>
+                <button class="pill-tab" data-filter="preparing">Preparing (<span id="filterCountPrep">0</span>)</button>
+                <button class="pill-tab" data-filter="ready">Ready (<span id="filterCountReady">0</span>)</button>
+                <button class="pill-tab" data-filter="completed">Delivered / Done (<span id="filterCountDone">0</span>)</button>
+              </div>
+
+              <button class="btn btn-accent" id="btnShareFromOrders"><span>📲 Share ordering link</span></button>
+            </div>
+          </div>
+
+          <!-- Orders Notice Banner -->
+          <div class="info-alert-strip">
+            <span class="alert-icon">💡</span>
+            <span>
+              <strong>FIFO Priority Flow:</strong> When orders move to <em>"Out for Delivery"</em> or <em>"Delivered"</em>, they move to the completed section so pending kitchen/store orders remain on top.
+            </span>
+          </div>
+
+          <!-- Orders Main Table -->
+          <div class="card table-card">
+            <div class="table-responsive">
+              <table class="data-table orders-full-table" id="ordersMainTable">
+                <thead>
+                  <tr>
+                    <th style="width: 100px;">Order #</th>
+                    <th>Customer Name</th>
+                    <th>Customer Phone</th>
+                    <th>Items (Click to view)</th>
+                    <th>Total Amount</th>
+                    <th>Time</th>
+                    <th>Status</th>
+                    <th style="min-width: 220px;">Action / Workflow</th>
+                  </tr>
+                </thead>
+                <tbody id="ordersMainTbody">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ======================================================= -->
+        <!-- VIEW: CUSTOMER CHATS (store ↔ customer on WhatsApp) -->
+        <!-- ======================================================= -->
+        <section class="view-panel" id="view-chats">
+          <div class="section-header-row">
+            <div>
+              <h2 class="section-title">Customer Chats</h2>
+              <p class="section-subtitle">Every WhatsApp conversation with your store. Reply as staff or take over from the bot.</p>
+            </div>
+          </div>
+          <div class="chat-shell card">
+            <aside class="chat-list-col">
+              <div class="chat-search-wrap"><input type="text" id="chatSearchInput" class="form-input" placeholder="Search name or phone…" /></div>
+              <div class="chat-list" id="chatList"></div>
+            </aside>
+            <div class="chat-thread-col" id="chatThreadCol">
+              <div class="chat-empty">💬 Pick a conversation to read and reply</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ======================================================= -->
+        <!-- VIEW 3: UPLOAD DETAILS — STORE SETUP (HIGH PRIORITY) -->
+        <!-- ======================================================= -->
+        <section class="view-panel" id="view-upload-details">
+          
+          <div class="section-header-row">
+            <div>
+              <h2 class="section-title">Upload Details & Store Setup</h2>
+              <p class="section-subtitle">
+                Configure your complete business profile. The entire dashboard dynamically adapts to this business name, category, and timings.
+              </p>
+            </div>
+            <div class="header-action-group">
+              <button class="btn btn-outline" id="btnResetDefaultStore">↻ Reload from server</button>
+              <button class="btn btn-primary" id="btnTriggerStoreSave">
+                <span>💾 Save Details</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Success Alert when Saved -->
+          <div class="success-banner" id="storeSaveSuccessBanner" style="display:none;">
+            <div class="banner-content">
+              <span class="success-icon">✅</span>
+              <div>
+                <strong>Store Details Updated Successfully!</strong>
+                <p>The dashboard, sidebar, WhatsApp AI responses, and receipts have adapted to your business information.</p>
+              </div>
+            </div>
+            <button class="btn-close" id="btnCloseSuccessBanner">✕</button>
+          </div>
+
+          <div class="store-setup-layout">
+            
+            <!-- Left: Store Logo & Visual Identity -->
+            <div class="setup-sidebar-card">
+              <h3 class="card-heading">Store Logo & Brand</h3>
+              <p class="card-caption">Upload your shop logo or choose a preset for your business.</p>
+              
+              <div class="logo-preview-box" id="logoPreviewBox">
+                <div class="logo-preview-circle" id="logoPreviewCircle">
+                  <span id="logoInitials">SL</span>
+                </div>
+                <span class="logo-current-label" id="logoCurrentLabel"></span>
+              </div>
+
+              <!-- Upload Logo File Input -->
+              <div class="upload-dropzone" id="logoDropzone">
+                <input type="file" id="logoFileInput" accept="image/*" class="file-input-hidden" />
+                <label for="logoFileInput" class="dropzone-label">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                  <span>Click to Upload Logo Image</span>
+                  <small>PNG, JPG, SVG up to 5MB</small>
+                </label>
+              </div>
+
+              <!-- Quick Presets -->
+              <div class="brand-presets">
+                <label class="form-label">Or Pick a Quick Preset:</label>
+                <div class="preset-pill-group">
+                  <button type="button" class="preset-pill active" data-preset="kirana">🛒 Kirana</button>
+                  <button type="button" class="preset-pill" data-preset="restaurant">🍽️ Restaurant</button>
+                  <button type="button" class="preset-pill" data-preset="cafe">☕ Café</button>
+                  <button type="button" class="preset-pill" data-preset="bakery">🥐 Bakery</button>
+                  <button type="button" class="preset-pill" data-preset="medical">💊 Medical</button>
+                  <button type="button" class="preset-pill" data-preset="other">✨ Other</button>
+                </div>
+              </div>
+
+              <!-- Real-time Preview Pill -->
+              <div class="store-preview-chip">
+                <span class="preview-tag">LIVE PREVIEW</span>
+                <div class="preview-name" id="previewStoreName">…</div>
+                <div class="preview-type" id="previewBusinessType">Kirana / General Store</div>
+                <div class="preview-phone" id="previewPhone">—</div>
+              </div>
+            </div>
+
+            <!-- Right: The Complete Store Information Form -->
+            <div class="setup-form-card">
+              <form id="storeDetailsForm" novalidate>
+                <h3 class="card-heading">Business Information</h3>
+                <p class="card-caption">All fields are validated and immediately update the AI ordering catalog.</p>
+
+                <div class="form-grid">
+                  
+                  <!-- Store Name -->
+                  <div class="form-group col-span-2">
+                    <label for="inputStoreName" class="form-label required">Store Name</label>
+                    <input type="text" id="inputStoreName" class="form-input" placeholder="e.g. Sai Local Store, Hyderabad Spice, Apollo Pharmacy" required />
+                    <span class="form-hint">Displayed to WhatsApp customers and on all order receipts</span>
+                    <span class="field-error" id="errStoreName"></span>
+                  </div>
+
+                  <!-- Business Type Selector -->
+                  <div class="form-group">
+                    <label for="selectBusinessType" class="form-label required">Business Type</label>
+                    <select id="selectBusinessType" class="form-select" required>
+                      <option value="Kirana / General Store">Kirana / General Store</option>
+                      <option value="Restaurant">Restaurant</option>
+                      <option value="Café">Café</option>
+                      <option value="Bakery">Bakery</option>
+                      <option value="Medical Shop">Medical Shop</option>
+                      <option value="Grocery Store">Grocery Store</option>
+                      <option value="Clothing Store">Clothing Store</option>
+                      <option value="Electronics Store">Electronics Store</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <span class="field-error" id="errBusinessType"></span>
+                  </div>
+
+                  <!-- Custom Business Type (Shown when 'Other' is selected) -->
+                  <div class="form-group" id="customBusinessTypeWrap" style="display:none;">
+                    <label for="inputCustomBusinessType" class="form-label required">Enter Business Type</label>
+                    <input type="text" id="inputCustomBusinessType" class="form-input" placeholder="e.g. Stationery Shop" />
+                    <span class="field-error" id="errCustomBusinessType"></span>
+                  </div>
+
+                  <!-- Mobile Number -->
+                  <div class="form-group">
+                    <label for="inputStorePhone" class="form-label required">Mobile Number (WhatsApp Enabled)</label>
+                    <input type="tel" id="inputStorePhone" class="form-input" placeholder="e.g. 9876543210" required />
+                    <span class="form-hint">Used for AI WhatsApp automated customer conversations</span>
+                    <span class="field-error" id="errStorePhone"></span>
+                  </div>
+
+                  <!-- Store Address -->
+                  <div class="form-group col-span-2">
+                    <div class="label-with-action">
+                      <label for="inputStoreAddress" class="form-label required">Store Address</label>
+                      <button type="button" class="btn-link-action" id="btnUseCurrentLocationSetup">
+                        <span>📍 Use Current Location</span>
+                      </button>
+                    </div>
+                    <textarea id="inputStoreAddress" class="form-textarea" rows="2" placeholder="Shop/Plot number, Street, Landmark, Area" required></textarea>
+                    <span class="field-error" id="errStoreAddress"></span>
+                  </div>
+
+                  <!-- City -->
+                  <div class="form-group">
+                    <label for="inputStoreCity" class="form-label required">City</label>
+                    <input type="text" id="inputStoreCity" class="form-input" placeholder="e.g. Hyderabad, Bengaluru, Mumbai" required />
+                    <span class="field-error" id="errStoreCity"></span>
+                  </div>
+
+                  <!-- PIN Code -->
+                  <div class="form-group">
+                    <label for="inputStorePincode" class="form-label required">PIN Code</label>
+                    <input type="text" id="inputStorePincode" class="form-input" placeholder="e.g. 500033" maxlength="6" required />
+                    <span class="field-error" id="errStorePincode"></span>
+                  </div>
+
+                  <!-- Store Description -->
+                  <div class="form-group col-span-2">
+                    <label for="inputStoreDesc" class="form-label">Store Description</label>
+                    <textarea id="inputStoreDesc" class="form-textarea" rows="2" placeholder="Brief description of products, specialties, and WhatsApp ordering policies..."></textarea>
+                    <span class="form-hint">Fed into the WhatsApp AI ordering prompt to answer customer queries</span>
+                  </div>
+
+                  <!-- Opening Time -->
+                  <div class="form-group">
+                    <label for="inputOpeningTime" class="form-label required">Opening Time</label>
+                    <input type="time" id="inputOpeningTime" class="form-input" value="07:00" required />
+                  </div>
+
+                  <!-- Closing Time -->
+                  <div class="form-group">
+                    <label for="inputClosingTime" class="form-label required">Closing Time</label>
+                    <input type="time" id="inputClosingTime" class="form-input" value="22:00" required />
+                  </div>
+                </div>
+
+                <div class="form-actions-bar">
+                  <button type="button" class="btn btn-outline" id="btnDiscardSetup">Discard Changes</button>
+                  <button type="submit" class="btn btn-primary btn-lg" id="btnSaveStoreDetails">
+                    <span>💾 Save Store Details</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ======================================================= -->
+        <!-- VIEW 4: ITEMS / INVENTORY -->
+        <!-- ======================================================= -->
+        <section class="view-panel" id="view-inventory">
+          
+          <div class="section-header-row">
+            <div>
+              <h2 class="section-title">Items / Inventory Management</h2>
+              <p class="section-subtitle">
+                Source of truth for the WhatsApp AI ordering engine. Stock is reserved the moment a WhatsApp order is placed, and restored if it is rejected or cancelled.
+              </p>
+            </div>
+            <div class="header-action-group">
+              <button class="btn btn-primary" id="btnOpenAddProductModal">
+                <span>+ Add Product</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Inventory Filters Bar -->
+          <div class="inventory-controls-card">
+            <!-- Search bar -->
+            <div class="search-input-wrap">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="inventorySearchInput" class="search-input" placeholder="Search products by name, category, or brand..." />
+              <button class="clear-search-btn" id="btnClearInventorySearch" style="display:none;">✕</button>
+            </div>
+
+            <!-- Filters -->
+            <div class="filter-dropdowns-row">
+              <!-- Category Filter -->
+              <div class="select-wrap">
+                <label for="filterCategory" class="sr-only">Filter by Category</label>
+                <select id="filterCategory" class="filter-select">
+                  <option value="all">All Categories</option>
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+
+              <!-- Stock Status Filter -->
+              <div class="select-wrap">
+                <label for="filterStockStatus" class="sr-only">Filter by Stock Status</label>
+                <select id="filterStockStatus" class="filter-select">
+                  <option value="all">All Stock Levels</option>
+                  <option value="in_stock">🟢 In Stock (&gt;10)</option>
+                  <option value="low_stock">🟡 Low Stock (1–10)</option>
+                  <option value="critical">🔴 Critical / Out of Stock (0)</option>
+                </select>
+              </div>
+
+              <!-- Availability Filter -->
+              <div class="select-wrap">
+                <label for="filterAvailability" class="sr-only">Filter by Availability</label>
+                <select id="filterAvailability" class="filter-select">
+                  <option value="all">All Availability</option>
+                  <option value="available">Available (AI can order)</option>
+                  <option value="unavailable">Unavailable (Disabled)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stock Status Logic Legend Strip -->
+          <div class="stock-legend-strip">
+            <span class="legend-title">Dynamic Stock Indicators:</span>
+            <span class="legend-item"><span class="badge-stock stock-green">🟢 In Stock (&gt;10)</span> AI actively offers</span>
+            <span class="legend-item"><span class="badge-stock stock-yellow">🟡 Low Stock (1–10)</span> Warning on portal</span>
+            <span class="legend-item"><span class="badge-stock stock-red">🔴 Out of Stock (0)</span> AI blocks ordering</span>
+          </div>
+
+          <!-- Inventory Products Table -->
+          <div class="card table-card">
+            <div class="table-responsive">
+              <table class="data-table inventory-table" id="inventoryMainTable">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Category</th>
+                    <th>Brand</th>
+                    <th>Variant / Size</th>
+                    <th>Price</th>
+                    <th>Available Quantity</th>
+                    <th>Stock Status</th>
+                    <th>Availability</th>
+                    <th style="text-align:right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="inventoryTbody">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ======================================================= -->
+        <!-- VIEW 5: ANALYSIS -->
+        <!-- ======================================================= -->
+        <section class="view-panel" id="view-analysis">
+          
+          <div class="section-header-row">
+            <div>
+              <h2 class="section-title">Business Performance & Analysis</h2>
+              <p class="section-subtitle">
+                Historical records and revenue analytics. Today's figures reflect <em>"Collected So Far"</em> while operating.
+              </p>
+            </div>
+            <div class="header-action-group">
+              <div class="custom-date-pill">
+                <span class="pill-label">Viewing Date:</span>
+                <select id="analysisDatePicker" class="date-select">
+                  <option>Loading…</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Selected Day Summary Card -->
+          <div class="analysis-hero-card">
+            <div class="analysis-hero-header">
+              <div>
+                <span class="analysis-date-badge" id="analysisSelectedDateBadge"></span>
+                <h3 class="analysis-hero-amount" id="analysisTotalAmount">₹0</h3>
+                <span class="analysis-status-pill" id="analysisRevenueStatusPill">Today's Revenue So Far</span>
+              </div>
+              <div class="analysis-hero-stats">
+                <div class="hero-stat-cell">
+                  <span class="hero-stat-num" id="analysisOrderCount">0</span>
+                  <span class="hero-stat-desc">Total Orders</span>
+                </div>
+                <div class="hero-stat-cell">
+                  <span class="hero-stat-num" id="analysisAvgOrder">₹0</span>
+                  <span class="hero-stat-desc">Average Order Value</span>
+                </div>
+                <div class="hero-stat-cell">
+                  <span class="hero-stat-num" id="analysisItemsSold">0</span>
+                  <span class="hero-stat-desc">Items Sold</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Daily Revenue History Comparison -->
+          <div class="card analysis-card">
+            <div class="card-head-row">
+              <h3 class="card-heading">Daily Revenue Comparison</h3>
+              <span class="card-caption">Click any date to load that day's complete ledger</span>
+            </div>
+
+            <div class="historical-revenue-bars" id="historicalRevenueBars">
+              <!-- Dynamic bars for Oct 1, Oct 2, Oct 3 -->
+            </div>
+          </div>
+
+          <!-- Split Analysis: Category Breakdown & Hourly Trend -->
+          <div class="analysis-grid-2">
+            <!-- Category Contribution -->
+            <div class="card">
+              <h3 class="card-heading">Sales by Category</h3>
+              <p class="card-caption">Contribution of each business category</p>
+              <div class="category-bars-list" id="analysisCategoryBars">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+
+            <!-- Top Selling Items -->
+            <div class="card">
+              <h3 class="card-heading">Top Ordered Items</h3>
+              <p class="card-caption">Most popular items requested via WhatsApp AI</p>
+              <div class="top-items-list" id="analysisTopItemsList">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ======================================================= -->
+        <!-- VIEW 6: NOTIFICATIONS -->
+        <!-- ======================================================= -->
+        <section class="view-panel" id="view-notifications">
+          
+          <div class="section-header-row">
+            <div>
+              <h2 class="section-title">Notifications Center</h2>
+              <p class="section-subtitle">
+                Real-time activity log for new orders, stock alerts, out-of-stock events, and status changes.
+              </p>
+            </div>
+            <div class="header-action-group">
+              <button class="btn btn-outline" id="btnMarkAllReadSection">Mark all as read</button>
+            </div>
+          </div>
+
+          <div class="notifications-container card">
+            <div class="notif-filter-bar">
+              <button class="notif-tab active" data-type="all">All</button>
+              <button class="notif-tab" data-type="order">🔔 New Orders</button>
+              <button class="notif-tab" data-type="stock">⚠️ Inventory Alerts</button>
+              <button class="notif-tab" data-type="store">🏪 Store Status</button>
+            </div>
+
+            <div class="full-notif-list" id="fullNotifList">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+        </section>
+
+        <!-- ======================================================= -->
+        <!-- VIEW 7: STORE SETTINGS & ADDRESS -->
+        <!-- ======================================================= -->
+        <section class="view-panel" id="view-settings">
+          
+          <div class="section-header-row">
+            <div>
+              <h2 class="section-title">Store Settings & Profile</h2>
+              <p class="section-subtitle">
+                Manage business parameters, location coordinates, timings, and WhatsApp AI bot preferences.
+              </p>
+            </div>
+            <div class="header-action-group">
+              <button class="btn btn-primary" id="btnSaveStoreSettingsTab">
+                <span>Save All Settings</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <!-- Share: the customer ordering link -->
+            <div class="card col-span-2">
+              <h3 class="card-heading">📲 Your WhatsApp ordering link</h3>
+              <p class="card-caption">Print the QR on your counter, share the link on your WhatsApp status or groups.</p>
+              <div class="share-card">
+                <div class="share-qr" id="shareQr"></div>
+                <div>
+                  <div class="share-link-box" id="shareLinkBox">…</div>
+                  <div class="share-link-row">
+                    <button class="btn btn-primary btn-sm" id="btnCopyShareLink">🔗 Copy link</button>
+                    <a class="btn btn-outline btn-sm" id="btnOpenShareLink" target="_blank" rel="noopener">Open in WhatsApp ↗</a>
+                    <button class="btn btn-outline btn-sm" id="btnPrintPoster">🖨️ Print poster</button>
+                  </div>
+                  <ol class="share-steps" id="shareSteps"></ol>
+                </div>
+              </div>
+            </div>
+
+            <!-- Settings Card 1: Core Details -->
+            <div class="card">
+              <h3 class="card-heading">General Store Settings</h3>
+              <p class="card-caption">Basic identifiers used in customer chat greetings</p>
+
+              <div class="form-grid">
+                <div class="form-group col-span-2">
+                  <label class="form-label" for="settingsStoreName">Store Name</label>
+                  <input type="text" id="settingsStoreName" class="form-input" />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="settingsBusinessType">Business Type</label>
+                  <select id="settingsBusinessType" class="form-select">
+                    <option value="Kirana / General Store">Kirana / General Store</option>
+                    <option value="Restaurant">Restaurant</option>
+                    <option value="Café">Café</option>
+                    <option value="Bakery">Bakery</option>
+                    <option value="Medical Shop">Medical Shop</option>
+                    <option value="Grocery Store">Grocery Store</option>
+                    <option value="Clothing Store">Clothing Store</option>
+                    <option value="Electronics Store">Electronics Store</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <!-- Custom Business Type for Store Settings (Shown when 'Other' is selected) -->
+                <div class="form-group" id="settingsCustomBusinessTypeWrap" style="display:none;">
+                  <label class="form-label required" for="settingsCustomBusinessType">Enter Business Type</label>
+                  <input type="text" id="settingsCustomBusinessType" class="form-input" placeholder="e.g. Stationery Shop" />
+                  <span class="field-error" id="errSettingsCustomBusinessType"></span>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="settingsStorePhone">Store Phone (WhatsApp)</label>
+                  <input type="tel" id="settingsStorePhone" class="form-input" />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="settingsOpeningTime">Opening Time</label>
+                  <input type="time" id="settingsOpeningTime" class="form-input" />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="settingsClosingTime">Closing Time</label>
+                  <input type="time" id="settingsClosingTime" class="form-input" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Settings Card 2: Address & Geolocation -->
+            <div class="card">
+              <div class="label-with-action">
+                <h3 class="card-heading">Store Address & Coordinates</h3>
+                <button type="button" class="btn btn-outline btn-sm" id="btnUseCurrentLocationSettings">
+                  <span>📍 Use Current Location</span>
+                </button>
+              </div>
+              <p class="card-caption">Used by delivery riders and customers calculating distance</p>
+
+              <div class="form-grid">
+                <div class="form-group col-span-2">
+                  <label class="form-label" for="settingsStoreAddress">Store Address</label>
+                  <textarea id="settingsStoreAddress" class="form-textarea" rows="2"></textarea>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="settingsStoreCity">City</label>
+                  <input type="text" id="settingsStoreCity" class="form-input" />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="settingsStorePincode">PIN Code</label>
+                  <input type="text" id="settingsStorePincode" class="form-input" maxlength="6" />
+                </div>
+
+                <div class="col-span-2 location-status-strip" id="locationStatusStrip">
+                  <span class="loc-icon">📍</span>
+                  <span class="loc-text" id="locationStatusText"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Settings Card 3: AI WhatsApp Ordering Settings -->
+            <div class="card col-span-2">
+              <h3 class="card-heading">WhatsApp Ordering Settings</h3>
+              <p class="card-caption">Used live by the WhatsApp bot for greetings, bills, delivery and UPI payment links</p>
+
+              <div class="form-grid">
+                <div class="form-group col-span-2">
+                  <label class="form-label" for="settingsAiGreeting">Welcome message (optional — replaces the default greeting line)</label>
+                  <input type="text" id="settingsAiGreeting" class="form-input" placeholder="e.g. Namaste! 🙏 Fresh milk & groceries delivered in 30 mins." />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="settingsDeliveryEta">Delivery time shown to customers</label>
+                  <input type="text" id="settingsDeliveryEta" class="form-input" placeholder="30-45 mins" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="settingsUpiId">UPI ID for payments</label>
+                  <input type="text" id="settingsUpiId" class="form-input" placeholder="yourstore@upi" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="settingsDeliveryFee">Delivery Fee (₹)</label>
+                  <input type="number" id="settingsDeliveryFee" class="form-input" min="0" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="settingsFreeDeliveryAbove">Free delivery above (₹)</label>
+                  <input type="number" id="settingsFreeDeliveryAbove" class="form-input" min="0" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="settingsMinOrderVal">Minimum Order Value (₹)</label>
+                  <input type="number" id="settingsMinOrderVal" class="form-input" min="0" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Account -->
+            <div class="card">
+              <h3 class="card-heading">👤 Your account</h3>
+              <p class="card-caption" id="accountEmail">Logged in as …</p>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label" for="accountName">Your name</label>
+                  <input type="text" id="accountName" class="form-input" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="accountPhone">Mobile</label>
+                  <input type="tel" id="accountPhone" class="form-input" />
+                </div>
+                <div class="form-group col-span-2">
+                  <button class="btn btn-outline btn-sm" id="btnSaveAccount" type="button">Save profile</button>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="pwCurrent">Current password</label>
+                  <input type="password" id="pwCurrent" class="form-input" autocomplete="current-password" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="pwNew">New password (8+ characters)</label>
+                  <input type="password" id="pwNew" class="form-input" autocomplete="new-password" />
+                </div>
+                <div class="form-group col-span-2">
+                  <button class="btn btn-outline btn-sm" id="btnChangePassword" type="button">Change password</button>
+                  <span class="field-error" id="errPassword"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Own WhatsApp number (optional) -->
+            <div class="card">
+              <h3 class="card-heading">☎️ Own WhatsApp number <span class="type-pill">optional</span></h3>
+              <p class="card-caption">By default your shop shares the platform number and customers send “join your-code”.
+                Connect your own WhatsApp Business number (Meta → WhatsApp → API Setup) to get every message on it directly.</p>
+              <div class="form-grid">
+                <div class="form-group col-span-2">
+                  <label class="form-label" for="ownNumberId">Phone number ID</label>
+                  <input type="text" id="ownNumberId" class="form-input" placeholder="e.g. 1234567890123456" />
+                </div>
+                <div class="form-group col-span-2">
+                  <label class="form-label" for="ownNumberToken">Access token</label>
+                  <input type="password" id="ownNumberToken" class="form-input" placeholder="Leave blank to keep the saved token" autocomplete="off" />
+                </div>
+                <div class="form-group col-span-2">
+                  <button class="btn btn-outline btn-sm" id="btnSaveOwnNumber" type="button">Save number</button>
+                  <span class="card-caption" id="ownNumberStatus"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: CLOSE STORE (WITH REASONS) -->
+  <!-- ======================================================= -->
+  <div class="modal-overlay" id="closeStoreModal" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-icon-badge bg-rose-subtle">⚠️</div>
+        <div>
+          <h3 class="modal-title">Why are you closing the store?</h3>
+          <p class="modal-subtitle">Closing the store will pause incoming orders on WhatsApp</p>
+        </div>
+      </div>
+      
+      <div class="modal-body">
+        <div class="radio-options-list">
+          <label class="radio-option">
+            <input type="radio" name="closeReason" value="Temporarily unavailable" checked />
+            <div class="radio-content">
+              <strong>1. Temporarily unavailable</strong>
+              <span>Staff taking a short break or restocking</span>
+            </div>
+          </label>
+
+          <label class="radio-option">
+            <input type="radio" name="closeReason" value="Too many orders — taking some time to process" />
+            <div class="radio-content">
+              <strong>2. Too many orders — taking some time to process</strong>
+              <span>Kitchen/Staff busy clearing the current queue</span>
+            </div>
+          </label>
+
+          <label class="radio-option">
+            <input type="radio" name="closeReason" value="Other" id="radioCloseReasonOther" />
+            <div class="radio-content">
+              <strong>3. Other</strong>
+              <span>Specify a custom reason</span>
+            </div>
+          </label>
+        </div>
+
+        <div class="form-group mt-3" id="customCloseReasonWrap" style="display:none;">
+          <label class="form-label" for="customCloseReasonInput">Enter Reason</label>
+          <input type="text" id="customCloseReasonInput" class="form-input" placeholder="e.g. Electricity outage, Special function, Heavy rain" />
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" id="btnCancelCloseStore">Cancel</button>
+        <button class="btn btn-danger" id="btnConfirmCloseStore">
+          <span>Confirm & Close Store</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: ORDER DETAILS & ITEMS VIEW -->
+  <!-- ======================================================= -->
+  <div class="modal-overlay" id="orderDetailsModal" style="display:none;">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <div>
+          <div class="modal-tag-row">
+            <span class="order-num-pill" id="modalOrderNumber"></span>
+            <span class="status-pill-modal" id="modalOrderStatus">NEW</span>
+            <span class="status-pill-modal status-accepted" id="modalStoreTypeBadge">Kirana / General Store</span>
+          </div>
+          <h3 class="modal-title" id="modalOrderCustomerTitle"></h3>
+        </div>
+        <button class="btn-close" id="btnCloseOrderDetailsModal">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="order-detail-meta-grid">
+          <div class="meta-item">
+            <span class="meta-label">Customer Name</span>
+            <span class="meta-val" id="modalCustomerName"></span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Phone Number</span>
+            <span class="meta-val" id="modalCustomerPhone"></span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Order Time</span>
+            <span class="meta-val" id="modalOrderTime"></span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Payment Status</span>
+            <span class="meta-val" id="modalOrderPayment"></span>
+          </div>
+        </div>
+
+        <div class="order-address-box">
+          <span class="address-title">📍 Customer Delivery Address:</span>
+          <p class="address-text" id="modalCustomerAddress"></p>
+        </div>
+
+        <!-- Items Table -->
+        <h4 class="subhead-items">Ordered Items</h4>
+        <div class="table-responsive">
+          <table class="receipt-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th style="text-align:right;">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody id="modalItemsTbody">
+              <!-- Populated via JS -->
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3" class="total-label">Total Amount:</td>
+                <td class="total-amount" id="modalTotalAmount"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div id="modalOrderExtras"></div>
+      </div>
+
+      <div class="modal-footer" id="modalOrderFooterActions">
+        <!-- Action workflow buttons dynamically injected -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: REJECT ORDER (WITH REASONS) -->
+  <!-- ======================================================= -->
+  <div class="modal-overlay" id="rejectOrderModal" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-icon-badge bg-rose-subtle">❌</div>
+        <div>
+          <h3 class="modal-title">Reject this order?</h3>
+          <p class="modal-subtitle" id="rejectOrderSubtitle"></p>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <p class="modal-instructions">Select a rejection reason. The WhatsApp AI agent will politely notify the customer.</p>
+        
+        <div class="radio-options-list">
+          <label class="radio-option">
+            <input type="radio" name="rejectReason" value="Item unavailable" checked />
+            <div class="radio-content">
+              <strong>Item unavailable</strong>
+              <span>Out of stock item requested</span>
+            </div>
+          </label>
+
+          <label class="radio-option">
+            <input type="radio" name="rejectReason" value="Store too busy" />
+            <div class="radio-content">
+              <strong>Store too busy</strong>
+              <span>Excess backlog in current queue</span>
+            </div>
+          </label>
+
+          <label class="radio-option">
+            <input type="radio" name="rejectReason" value="Delivery unavailable" />
+            <div class="radio-content">
+              <strong>Delivery unavailable</strong>
+              <span>Delivery rider not available for distance</span>
+            </div>
+          </label>
+
+          <label class="radio-option">
+            <input type="radio" name="rejectReason" value="Other" id="radioRejectReasonOther" />
+            <div class="radio-content">
+              <strong>Other</strong>
+              <span>Enter custom reason</span>
+            </div>
+          </label>
+        </div>
+
+        <div class="form-group mt-3" id="customRejectReasonWrap" style="display:none;">
+          <label class="form-label" for="customRejectReasonInput">Enter Custom Reason</label>
+          <input type="text" id="customRejectReasonInput" class="form-input" placeholder="e.g. Store closing early for renovation" />
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" id="btnCancelRejectOrder">Keep Order</button>
+        <button class="btn btn-danger" id="btnConfirmRejectOrder">
+          <span>Confirm Rejection</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: ADD / EDIT PRODUCT -->
+  <!-- ======================================================= -->
+  <div class="modal-overlay" id="productModal" style="display:none;">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title" id="productModalTitle">Add New Product</h3>
+        <button class="btn-close" id="btnCloseProductModal">✕</button>
+      </div>
+
+      <form id="productForm">
+        <input type="hidden" id="editProductId" />
+        
+        <div class="modal-body">
+          <div class="form-grid">
+            
+            <div class="form-group col-span-2">
+              <label class="form-label required" for="prodNameInput">Product Name</label>
+              <input type="text" id="prodNameInput" class="form-input" placeholder="e.g. Milk, KitKat, Bread, Paneer, Basmati Rice" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label required" for="prodCategoryInput">Category</label>
+              <input type="text" id="prodCategoryInput" class="form-input" placeholder="e.g. Dairy, Chocolate, Bakery, Grocery, Snacks" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="prodBrandInput">Brand</label>
+              <input type="text" id="prodBrandInput" class="form-input" placeholder="e.g. Heritage, Nestlé, Britannia, Amul" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label required" for="prodVariantInput">Variant / Size</label>
+              <input type="text" id="prodVariantInput" class="form-input" placeholder="e.g. 1 L, 1 Piece, 400g, 500g, 5 kg" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label required" for="prodPriceInput">Price (₹)</label>
+              <input type="number" id="prodPriceInput" class="form-input" placeholder="e.g. 65" min="1" step="any" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label required" for="prodQuantityInput">Available Quantity</label>
+              <input type="number" id="prodQuantityInput" class="form-input" placeholder="e.g. 50" min="0" required />
+              <span class="form-hint">&gt;10: 🟢 In Stock | 1–10: 🟡 Low Stock | 0: 🔴 Out of Stock</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label required" for="prodAvailabilitySelect">Availability Status</label>
+              <select id="prodAvailabilitySelect" class="form-select">
+                <option value="true">Available (AI can order)</option>
+                <option value="false">Unavailable (Hidden from AI)</option>
+              </select>
+            </div>
+
+            <div class="form-group col-span-2">
+              <label class="form-label" for="prodDescInput">Description</label>
+              <textarea id="prodDescInput" class="form-textarea" rows="2" placeholder="e.g. Fresh 1 litre milk packet, high calcium and nutrients"></textarea>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="btnCancelProductModal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveProductModal">
+            <span>Add Product</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: DELETE PRODUCT CONFIRMATION -->
+  <!-- ======================================================= -->
+  <div class="modal-overlay" id="deleteProductModal" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-icon-badge bg-rose-subtle">🗑️</div>
+        <div>
+          <h3 class="modal-title">Delete Product?</h3>
+          <p class="modal-subtitle" id="deleteProductSubtitle">Are you sure you want to remove this product?</p>
+        </div>
+      </div>
+      <div class="modal-body">
+        <p>This product will immediately be removed from your store inventory and the WhatsApp AI ordering catalog.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" id="btnCancelDeleteProduct">Cancel</button>
+        <button class="btn btn-danger" id="btnConfirmDeleteProduct">Delete Product</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: REVENUE DEEP DIVE -->
+  <!-- ======================================================= -->
+  <div class="modal-overlay" id="revenueModal" style="display:none;">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="revenueModalTitle">Revenue Breakdown — October 3, 2026</h3>
+          <p class="modal-subtitle" id="revenueModalSubtitle">Distinguishing Today's Revenue So Far from Final Daily Revenue</p>
+        </div>
+        <button class="btn-close" id="btnCloseRevenueModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="revenue-summary-pill-box">
+          <div class="rev-big-block">
+            <span class="rev-big-label" id="revModalPillLabel">Today's Revenue So Far</span>
+            <span class="rev-big-val" id="revModalAmount">₹0</span>
+            <span class="rev-big-note" id="revModalNote">Revenue from accepted & delivered orders (rejected/cancelled excluded)</span>
+          </div>
+        </div>
+
+        <div class="revenue-split-cards">
+          <div class="rev-stat-item">
+            <span class="rev-stat-label">Orders Count</span>
+            <span class="rev-stat-value" id="revModalOrders">0</span>
+          </div>
+          <div class="rev-stat-item">
+            <span class="rev-stat-label">Average Order</span>
+            <span class="rev-stat-value" id="revModalAvg">₹0</span>
+          </div>
+          <div class="rev-stat-item">
+            <span class="rev-stat-label">UPI / WhatsApp Pay</span>
+            <span class="rev-stat-value" id="revModalUPI">₹0</span>
+          </div>
+          <div class="rev-stat-item">
+            <span class="rev-stat-label">Cash on Delivery</span>
+            <span class="rev-stat-value" id="revModalCash">₹0</span>
+          </div>
+        </div>
+
+        <h4 class="subhead-items mt-4">Historical Reference</h4>
+        <div class="history-table-wrap">
+          <table class="receipt-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Orders</th>
+                <th style="text-align:right;">Final Collected</th>
+              </tr>
+            </thead>
+            <tbody id="revHistoryTbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" id="btnCloseRevenueModalBottom">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: HACKATHON LIVE WHATSAPP AI BOT PREVIEW & CHAT -->
+  <!-- ======================================================= -->
+  <div class="modal-overlay" id="whatsappSimulatorModal" style="display:none;">
+    <div class="modal-card modal-whatsapp">
+      <!-- WhatsApp Mock Header -->
+      <div class="wa-header">
+        <div class="wa-header-left">
+          <div class="wa-avatar" id="waAvatarIcon">SL</div>
+          <div>
+            <div class="wa-name" id="waHeaderStoreName">…</div>
+            <div class="wa-status">
+              <span class="wa-online-dot"></span>
+              <span id="waStatusText">online • live WhatsApp bot</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn-close wa-close" id="btnCloseWhatsAppSimulator">✕</button>
+      </div>
+
+      <!-- WhatsApp Chat Area -->
+      <div class="wa-chat-body" id="waChatMessages">
+      </div>
+
+      <!-- Quick Template Buttons for Judge Demo -->
+      <div class="wa-quick-prompts">
+        <span class="prompt-hint">Try:</span>
+        <button class="btn-prompt" data-prompt="Hi">"Hi"</button>
+        <span id="waProductPrompts"></span>
+        <button class="btn-prompt" id="btnPromptLocation">📍 Share location</button>
+        <button class="btn-prompt" id="btnSimNewCustomer" title="Start over as a brand-new customer">↺ New customer</button>
+      </div>
+
+      <!-- WhatsApp Input Bar -->
+      <div class="wa-input-bar">
+        <input type="text" id="waCustomerInput" class="wa-input" placeholder="Type a message as WhatsApp customer..." />
+        <button class="wa-send-btn" id="btnSendWaMsg" title="Send WhatsApp Message">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- HIGH PRIORITY FLOATING ORDER NOTIFICATION TOAST -->
+  <!-- ======================================================= -->
+  <div class="floating-order-toast" id="floatingOrderToast" style="display:none;">
+    <div class="toast-header-bar">
+      <div class="toast-title-row">
+        <span class="bell-toast-icon">🔔</span>
+        <span class="toast-headline">NEW ORDER RECEIVED!</span>
+      </div>
+      <span class="toast-order-num" id="toastOrderNumber"></span>
+    </div>
+
+    <div class="toast-body">
+      <div class="toast-customer-row">
+        <div>
+          <span class="toast-label">Customer:</span>
+          <strong id="toastCustomerName"></strong>
+        </div>
+        <div>
+          <span class="toast-label">Phone:</span>
+          <strong id="toastCustomerPhone"></strong>
+        </div>
+      </div>
+
+      <div class="toast-address-row">
+        <span class="toast-label">Address:</span>
+        <span class="toast-address-text" id="toastCustomerAddress"></span>
+      </div>
+
+      <div class="toast-items-row">
+        <span class="toast-label">Items:</span>
+        <span class="toast-items-text" id="toastItemsSummary"></span>
+      </div>
+
+      <div class="toast-total-row">
+        <span class="toast-total-label">Total Amount:</span>
+        <span class="toast-total-val" id="toastTotalAmount">₹0</span>
+      </div>
+    </div>
+
+    <div class="toast-actions">
+      <button class="btn btn-toast-accept" id="btnToastAccept">
+        <span>ACCEPT ORDER</span>
+      </button>
+      <button class="btn btn-toast-reject" id="btnToastReject">
+        <span>REJECT ORDER</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

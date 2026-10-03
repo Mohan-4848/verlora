@@ -1,0 +1,14 @@
+{
+  "name": "vyaparai-store-portal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Store-owner portal for the WhatsApp ordering bot. Served by the FastAPI backend at http://localhost:8000/ — or run `npm run dev` (talks to the backend on :8000).",
+  "scripts": {
+    "dev": "vite --port 5173",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^8.3.2"
+  }
+}
