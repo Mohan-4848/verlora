@@ -22,7 +22,9 @@ _STOP = {"a", "an", "the", "of", "and", "some", "pack", "packet", "packets", "pl
          "give", "me", "i", "for", "to", "kg", "g", "gm", "ml", "l", "ltr", "litre", "liter", "x",
          # Hindi / Telugu filler words ("mujhe … chahiye", "naaku … kavali")
          "mujhe", "chahiye", "chaiye", "bhejo", "bhej", "do", "dena", "de", "hai", "kya", "bhaiya", "bhai",
-         "naaku", "naku", "kavali", "kaavali", "kavaali", "ivvandi", "pampandi", "kuda", "kooda", "anna", "andi"}
+         "naaku", "naku", "kavali", "kaavali", "kavaali", "ivvandi", "pampandi", "kuda", "kooda", "anna", "andi",
+         "కావాలి", "నాకు", "ఇవ్వండి", "పంపండి", "ఉన్నాయా", "కూడా", "అన్నా", "అండి", "మరియు", "ఇంకా",
+         "चाहिए", "दीजिये", "दो", "भेजो", "है", "क्या", "भैया", "भाई", "और", "मुझे"}
 
 
 # What customers can still buy: physical stock minus what open (not yet dispatched) orders are holding.

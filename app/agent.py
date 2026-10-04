@@ -5,7 +5,7 @@ import logging
 import re
 from datetime import datetime
 
-from . import config, db, events, llm, messaging, store
+from . import config, db, events, i18n, llm, messaging, store
 
 log = logging.getLogger("agent")
 MAX_STEPS = 6
@@ -89,7 +89,11 @@ async def run_tool(name: str, args: dict, customer_id: int, turn: dict) -> dict:
     if name == "review_order":
         result = store.review_checkout(c, args.get("payment_method", ""))
         if result.get("ok"):
-            turn["buttons"] = [("confirm", "✅ Confirm order"), ("edit", "✏️ Make changes")]
+            l = i18n.normalize_language(c.get("language"))
+            turn["buttons"] = [
+                ("confirm", i18n.t("btn_confirm_order", l)),
+                ("edit", i18n.t("btn_edit_cart", l))
+            ]
         return result
     if name == "place_order":
         result = store.place_order(c)
@@ -235,6 +239,11 @@ async def respond(customer_id: int):
                               (customer_id, done))
             history.append({"role": "user", "content": "\n".join(p["body"] for p in pending)})
         _answered_upto[customer_id] = latest
+        if history and history[-1]["role"] == "user":
+            detected = i18n.detect_language(history[-1]["content"])
+            if detected and detected != c.get("language"):
+                db.run("UPDATE customers SET language=? WHERE id=?", (detected, customer_id))
+                c["language"] = detected
         messages = [{"role": "system", "content": _system_prompt(c)}, *history]
         turn: dict = {}
         reply = None

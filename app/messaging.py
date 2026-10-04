@@ -2,7 +2,7 @@
 import json
 import logging
 
-from . import config, db, events, llm, store, whatsapp
+from . import config, db, events, i18n, llm, store, whatsapp
 
 log = logging.getLogger("messaging")
 
@@ -45,36 +45,28 @@ async def send_to_customer(customer: dict, text: str, sender: str = "agent",
     return msg
 
 
-def _status_message(o: dict, status: str, note: str | None) -> str | None:
-    s = db.get_settings()
-    code, total = o["code"], store.money(o["total"])
-    reason = f"\nReason: {note}" if note else ""
-    if status == "accepted":
-        msg = f"✅ Your order *{code}* has been accepted! We're packing it now.\n🕒 Expected delivery: {o['eta']}"
-        if o["payment_method"] == "UPI" and o["payment_status"] != "paid":
+def _status_message(o: dict, status: str, note: str | None, lang: str = "en") -> str | None:
+    try:
+        s = db.get_settings()
+        store_name = s.get("store_name", "the store")
+    except Exception:
+        store_name = "the store"
+    total = store.money(o["total"])
+    msg = i18n.status_notification_message(o, status, note, lang=lang,
+                                           store_name=store_name,
+                                           total_str=total)
+    if not msg:
+        return None
+    if status == "accepted" and o.get("payment_method") == "UPI" and o.get("payment_status") != "paid":
+        code = o["code"]
+        norm_l = i18n.normalize_language(lang)
+        if norm_l == i18n.LANG_TE:
+            msg += f"\n💳 {total} ఇక్కడ చెల్లించండి: {config.PUBLIC_BASE_URL}/pay/{code}"
+        elif norm_l == i18n.LANG_HI:
+            msg += f"\n💳 {total} यहाँ भुगतान करें: {config.PUBLIC_BASE_URL}/pay/{code}"
+        else:
             msg += f"\n💳 Pay {total} here: {config.PUBLIC_BASE_URL}/pay/{code}"
-        return msg
-    if status == "rejected":
-        return (f"❌ Sorry, we couldn't accept order *{code}*.{reason}\n"
-                + ("Your payment will be refunded. " if o["payment_status"] in ("paid", "refund_due") else "")
-                + "Reply here if you'd like to order something else.")
-    if status == "preparing":
-        return f"👨‍🍳 We're preparing your order *{code}* now."
-    if status == "packed":
-        return f"📦 Order *{code}* is packed and will leave the store shortly."
-    if status == "out_for_delivery":
-        cash = f"\nPlease keep {total} ready (cash or UPI)." if o["payment_status"] != "paid" else ""
-        return f"🛵 Order *{code}* is out for delivery!{cash}"
-    if status == "delivered":
-        return (f"🎉 Order *{code}* delivered. Thank you for shopping with {s['store_name']}!\n"
-                "Reply *reorder* anytime to get the same items again.")
-    if status == "cancelled":
-        return f"🛑 Order *{code}* has been cancelled.{reason}"
-    if status == "payment_paid":
-        return f"💰 Payment of {total} received for order *{code}*. Thank you!"
-    if status == "payment_refunded":
-        return f"↩️ Refund of {total} for order *{code}* has been processed."
-    return None
+    return msg
 
 
 async def _localise(text: str, language: str | None) -> str:
@@ -93,9 +85,12 @@ async def _localise(text: str, language: str | None) -> str:
 
 
 async def notify_order_update(order: dict, status: str, note: str | None = None):
-    text = _status_message(order, status, note)
+    customer = db.get_customer(order["customer_id"])
+    lang = customer.get("language") or "en"
+    text = _status_message(order, status, note, lang=lang)
     if not text:
         return
-    customer = db.get_customer(order["customer_id"])
-    text = await _localise(text, customer.get("language"))
+    norm_lang = i18n.normalize_language(lang)
+    if norm_lang not in (i18n.LANG_EN, i18n.LANG_TE, i18n.LANG_HI):
+        text = await _localise(text, customer.get("language"))
     await send_to_customer(customer, text, sender="system")

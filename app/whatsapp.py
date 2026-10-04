@@ -24,6 +24,8 @@ def _creds() -> tuple[str, str]:
     shop = db.get_shop(sid) if sid is not None else None
     if shop and shop.get("wa_phone_number_id") and shop.get("wa_access_token"):
         return shop["wa_phone_number_id"], shop["wa_access_token"]
+    if not (config.PHONE_NUMBER_ID and config.ACCESS_TOKEN):
+        config.reload_whatsapp_credentials()
     return config.PHONE_NUMBER_ID, config.ACCESS_TOKEN
 
 
@@ -84,6 +86,8 @@ def parse_inbound(payload: dict) -> list[dict]:
 
 async def _post(payload: dict, retry: bool = True) -> bool:
     number_id, token = _creds()
+    if not (token and number_id) and retry and config.reload_whatsapp_credentials():
+        number_id, token = _creds()
     if not (token and number_id):
         log.warning("WhatsApp ACCESS_TOKEN / PHONE_NUMBER_ID missing – not sending")
         return False

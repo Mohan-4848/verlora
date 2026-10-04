@@ -63,7 +63,7 @@ FLOW_MODE = env("FLOW_MODE", "menu").lower()
 # LLM providers (OpenAI-compatible chat completions). Tried in order; on 429/5xx we fall through.
 GEMINI_API_KEY = env("GEMINI_API_KEY")
 GEMINI_MODELS = [m.strip() for m in env(
-    "GEMINI_MODELS", "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-flash-lite-latest"
+    "GEMINI_MODELS", "gemini-3.8-flash,gemini-flash-lite-latest"
 ).split(",") if m.strip()]
 GEMINI_REASONING = env("GEMINI_REASONING", "low")
 GROQ_API_KEY = env("GROQ_API_KEY")
@@ -73,7 +73,7 @@ GROQ_MODELS = [m.strip() for m in env("GROQ_MODELS", "llama-3.3-70b-versatile").
 DEFAULT_SETTINGS = {
     "store_name": env("STORE_NAME", "Sri Krishna Quick Mart"),
     "store_address": env("STORE_ADDRESS", "Maisammaguda, Dulapally, Hyderabad"),
-    "store_hours": "7:00 AM – 10:00 PM, all days",
+    "store_hours": "Open 24x7, all days",
     "delivery_eta": "30-45 mins",
     "delivery_fee": "25",
     "free_delivery_above": "200",
@@ -86,8 +86,8 @@ DEFAULT_SETTINGS = {
     "store_city": "Hyderabad",
     "store_pincode": "500100",
     "store_description": "Your neighbourhood store for milk, groceries, bakery and snacks — order on WhatsApp.",
-    "opening_time": "07:00",
-    "closing_time": "22:00",
+    "opening_time": "00:00",
+    "closing_time": "23:59",
     "logo_bg": "#059669",
     "logo_image": "",           # small data-URL uploaded from the portal
     "coordinates": "",

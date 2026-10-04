@@ -678,6 +678,43 @@ class VyaparStoreApp {
     this.btnPromptLocation.addEventListener('click', () => this.simSend({
       latitude: 17.5946, longitude: 78.4412, address: 'MRCET Road, Maisammaguda, Dulapally, Hyderabad', text: '📍 Location',
     }));
+    const btnHandwritten = document.getElementById('btnPromptHandwritten');
+    if (btnHandwritten) {
+      btnHandwritten.addEventListener('click', async () => {
+        try {
+          this.setSimTyping(true);
+          this.appendWaMessage('customer', { body: '📷 Sent handwritten shopping list (parcha)', created_at: new Date().toISOString() });
+          const res = await fetch('/handwritten_parcha.jpg');
+          const blob = await res.blob();
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const b64 = reader.result.split(',')[1];
+            this.simSend({ image_base64: b64, image_mime: 'image/jpeg' });
+          };
+          reader.readAsDataURL(blob);
+        } catch (e) {
+          this.setSimTyping(false);
+          this.appendSystemNote(`⚠️ Failed to load sample handwritten note: ${e.message}`);
+        }
+      });
+    }
+    const btnAttach = document.getElementById('btnAttachImage');
+    const fileInput = document.getElementById('waFileInput');
+    if (btnAttach && fileInput) {
+      btnAttach.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+        this.appendWaMessage('customer', { body: `📷 Uploaded: ${file.name}`, created_at: new Date().toISOString() });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const b64 = reader.result.split(',')[1];
+          this.simSend({ image_base64: b64, image_mime: file.type || 'image/jpeg' });
+          fileInput.value = '';
+        };
+        reader.readAsDataURL(file);
+      });
+    }
     this.btnSimNewCustomer.addEventListener('click', () => {
       this.simPhone = this.newSimPhone();
       this.waChatMessages.innerHTML = '';

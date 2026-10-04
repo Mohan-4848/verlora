@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Streamin
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import agent, auth, config, db, events, flow, llm, marketplace, messaging, notify, store, tenancy, whatsapp
+from . import agent, auth, config, db, events, flow, llm, marketplace, messaging, notify, store, tenancy, vision, whatsapp
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("main")
@@ -236,9 +236,13 @@ async def handle_inbound(m: dict, channel: str, shop_id: int | None = None):
                (loc.get("latitude"), loc.get("longitude"), addr, customer["id"]))
         kind = "location"
         body = f"📍 Shared location: {addr + ' ' if addr else ''}({loc.get('latitude')}, {loc.get('longitude')})"
-    elif m.get("media_id"):
+    elif m.get("media_id") or m.get("image_data"):
         try:
-            data, mime = await whatsapp.download_media(m["media_id"])
+            if m.get("media_id"):
+                data, mime = await whatsapp.download_media(m["media_id"])
+            else:
+                data, mime = m["image_data"], m.get("image_mime", "image/jpeg")
+
             if m["type"] == "audio":
                 kind = "voice"
                 transcript = await llm.understand_media(
@@ -247,11 +251,13 @@ async def handle_inbound(m: dict, channel: str, shop_id: int | None = None):
                 body, plain = f"🎤 {transcript}", transcript
             elif m["type"] == "image":
                 kind = "image"
-                seen = await llm.understand_media(
-                    data, mime, "A shop's customer sent this photo. If it is a shopping list or shows products, "
-                                "list each item with quantity/size. Otherwise describe it in one line.")
-                body = f"🖼️ [Photo] {seen}" + (f"\nCaption: {m['text']}" if m.get("text") else "")
-                plain = m.get("text") or seen
+                # Process via Handwritten & Grocery Vision AI
+                res = await vision.handle_handwritten_image(customer["id"], data, mime, m.get("text"))
+                body = f"📝 [Handwritten List / Photo]: {res.get('transcription', '')}" + (f"\nCaption: {m['text']}" if m.get("text") else "")
+                stored = db.add_message(customer["id"], "in", "customer", body, kind=kind, wa_id=m.get("wa_id"))
+                if stored is not None:
+                    events.publish("message", {**stored, "phone": customer["phone"], "channel": channel})
+                return   # Vision pipeline directly updated cart and sent WhatsApp buttons!
             else:
                 body = f"[Sent a {m['type']}]" + (f" {m['text']}" if m.get("text") else "")
         except Exception as e:
@@ -592,6 +598,8 @@ class SimBody(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     address: str | None = None
+    image_base64: str | None = None
+    image_mime: str | None = None
 
 
 @app.post("/api/sim/message", dependencies=[Depends(dashboard_auth)])
@@ -601,6 +609,10 @@ async def sim_message(body: SimBody):
     if body.latitude is not None:
         m.update(type="location", location={"latitude": body.latitude, "longitude": body.longitude,
                                             "address": body.address or ""})
+    elif body.image_base64:
+        import base64
+        data = base64.b64decode(body.image_base64)
+        m.update(type="image", image_data=data, image_mime=body.image_mime or "image/jpeg")
     _spawn(handle_inbound(m, "sim", db.shop_id()))
     return {"ok": True}
 

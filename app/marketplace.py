@@ -9,15 +9,16 @@ While a customer is mid-order (cart not empty, or in checkout) they stay with th
 import logging
 import re
 
-from . import config, db, flow, store, tenancy, understand, whatsapp
+from . import config, db, flow, i18n, store, tenancy, understand, whatsapp
 
 log = logging.getLogger("marketplace")
 
 # steps of the shop flow that must not be interrupted by a cross-shop search
 STAY_STATES = {"qty", "address", "address_choice", "payment", "confirm", "store_chat"}
-SHOP_COMMANDS = {"cart", "my cart", "basket", "view cart", "checkout", "order now", "buy", "place order", "orders",
-                 "my orders", "track", "track order", "status", "order status", "where is my order", "cod", "cash", "upi",
-                 "gpay", "phonepe", "paytm"} | flow.YES | flow.NO
+SHOP_COMMANDS = ({"cart", "my cart", "basket", "view cart", "checkout", "order now", "buy", "place order", "orders",
+                  "my orders", "track", "track order", "status", "order status", "where is my order", "cod", "cash", "upi",
+                  "gpay", "phonepe", "paytm", "నగదు", "యూపీఐ", "नकद", "यूपीआई"}
+                 | flow.YES | flow.NO | i18n.CART_WORDS_I18N | i18n.CHECKOUT_WORDS_I18N | i18n.ORDERS_WORDS_I18N | i18n.LANG_WORDS_I18N)
 
 
 def _open_shops() -> list[dict]:
@@ -105,13 +106,36 @@ async def offer_elsewhere(c: dict, text: str) -> bool:
     if not results:
         return False
     cart = store.cart(c["id"])
-    body = f"🔎 *{db.get_shop()['name']}* doesn't have *{text.strip()[:60]}*, but {'this shop does' if len(results) == 1 else f'{len(results)} other shops do'} 👇"
-    if cart["items"]:
-        n = cart["item_count"]
-        body += f"\n\n🧺 Your cart here ({n} item{'s' if n != 1 else ''}) is saved — you can come back to it anytime."
+    lang = i18n.normalize_language(c.get("language"))
+    shop_name = db.get_shop()["name"]
+    query_txt = text.strip()[:60]
+    n_shops = len(results)
+
+    if lang == i18n.LANG_TE:
+        body = f"🔎 *{shop_name}* వద్ద *{query_txt}* లేదు, కానీ {'ఈ షాప్‌లో ఉంది' if n_shops == 1 else f'{n_shops} ఇతర షాప్‌లలో ఉంది'} 👇"
+        if cart["items"]:
+            n = cart["item_count"]
+            body += f"\n\n🧺 ఇక్కడి మీ కార్ట్ ({n} వస్తువులు) భద్రంగా ఉంది — మీరు ఎప్పుడైనా తిరిగి రావచ్చు."
+        btn_txt = "షాప్ ఎంచుకోండి"
+        sec_title = "ఈ వస్తువు ఉన్న షాప్‌లు"
+    elif lang == i18n.LANG_HI:
+        body = f"🔎 *{shop_name}* में *{query_txt}* नहीं है, लेकिन {'इस दुकान में है' if n_shops == 1 else f'{n_shops} अन्य दुकानों में है'} 👇"
+        if cart["items"]:
+            n = cart["item_count"]
+            body += f"\n\n🧺 आपकी यहाँ की कार्ट ({n} सामान) सुरक्षित है — आप कभी भी वापस आ सकते हैं।"
+        btn_txt = "दुकान चुनें"
+        sec_title = "इस सामान वाली दुकानें"
+    else:
+        body = f"🔎 *{shop_name}* doesn't have *{query_txt}*, but {'this shop does' if n_shops == 1 else f'{n_shops} other shops do'} 👇"
+        if cart["items"]:
+            n = cart["item_count"]
+            body += f"\n\n🧺 Your cart here ({n} item{'s' if n != 1 else ''}) is saved — you can come back to it anytime."
+        btn_txt = "Choose shop"
+        sec_title = "Shops with this item"
+
     from . import messaging
     await messaging.send_to_customer(c, body, "agent", menu={
-        "button": "Choose shop", "sections": [{"title": "Shops with this item", "rows": _shop_rows(text, results)}]})
+        "button": btn_txt, "sections": [{"title": sec_title, "rows": _shop_rows(text, results)}]})
     return True
 
 
