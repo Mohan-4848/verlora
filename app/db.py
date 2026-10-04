@@ -417,8 +417,33 @@ def _migrate_legacy_store():
     log.warning("Existing store migrated to shop #1 — login saved in %s", path)
 
 
+def _ensure_shop_products(c, sid: int):
+    from .catalog_data import MASTER_PRODUCTS
+    existing = {
+        (r["name"].lower().strip(), (r["variant"] or "").lower().strip())
+        for r in all_("SELECT name, variant FROM products WHERE shop_id=?", (sid,))
+    }
+    t = now()
+    for p in MASTER_PRODUCTS:
+        name, brand, category, variant, price, mrp, stock, keywords, desc = p
+        key = (name.lower().strip(), variant.lower().strip())
+        if key not in existing:
+            c.execute(
+                "INSERT INTO products(shop_id, name, brand, category, variant, price, mrp, stock, keywords, description, active, created_at) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,1,?)",
+                (sid, name, brand, category, variant, price, mrp, stock, keywords, desc, t)
+            )
+            existing.add(key)
+        else:
+            c.execute(
+                "UPDATE products SET stock=MAX(stock, ?), price=?, mrp=?, keywords=?, description=?, active=1 "
+                "WHERE shop_id=? AND LOWER(name)=? AND LOWER(variant)=?",
+                (stock, price, mrp, keywords, desc, sid, name.lower().strip(), variant.lower().strip())
+            )
+
+
 def _ensure_example_shop():
-    """Ensure example shop exists in the database and is configured to Open 24x7."""
+    """Ensure example shop exists in the database and is configured to Open 24x7 with complete catalogue."""
     if one("SELECT COUNT(*) AS n FROM shops")["n"] > 0:
         with tx() as c:
             for shop in all_("SELECT id FROM shops"):
@@ -431,55 +456,15 @@ def _ensure_example_shop():
                     ("closing_time", "23:59"),
                 ]:
                     c.execute("INSERT OR REPLACE INTO shop_settings(shop_id, key, value) VALUES(?,?,?)", (sid, k, v))
+                _ensure_shop_products(c, sid)
         return
 
     name = config.DEFAULT_SETTINGS["store_name"]
     shop = create_shop(name, config.DEFAULT_SETTINGS)
     sid = shop["id"]
 
-    example_products = [
-        # Dairy
-        (sid, "Amul Taaza Toned Milk", "Amul", "Dairy", "500ml", 27.0, 27.0, 50, "milk doodh paalu fresh dairy", "Fresh pasteurised toned milk 500ml"),
-        (sid, "Amul Taaza Toned Milk", "Amul", "Dairy", "1 L", 54.0, 54.0, 50, "milk doodh paalu fresh dairy 1l 1litre", "Fresh pasteurised toned milk 1 litre"),
-        (sid, "Amul Gold Full Cream Milk", "Amul", "Dairy", "500ml", 33.0, 33.0, 40, "milk doodh paalu gold cream dairy", "High fat rich full cream milk 500ml"),
-        (sid, "Amul Gold Full Cream Milk", "Amul", "Dairy", "1 L", 66.0, 66.0, 40, "milk doodh paalu gold cream dairy 1l", "High fat rich full cream milk 1 litre"),
-        (sid, "Fresh Malai Paneer", "Amul", "Dairy", "200g", 90.0, 95.0, 30, "paneer cottage cheese dairy cooking", "Soft and fresh rich paneer cubes 200g"),
-        (sid, "Amul Masti Dahi Curd", "Amul", "Dairy", "400g", 40.0, 40.0, 35, "curd dahi perugu yogurt dairy", "Thick and fresh probiotic curd 400g"),
-        (sid, "Amul Butter", "Amul", "Dairy", "100g", 58.0, 60.0, 30, "butter makhan venna salted dairy", "Utterly butterly delicious salted butter 100g"),
-        # Bakery
-        (sid, "Britannia Milk Bread", "Britannia", "Bakery", "400g", 45.0, 45.0, 30, "bread loaf bakery breakfast toast", "Soft enriched daily white milk bread 400g"),
-        (sid, "Britannia Brown Bread", "Britannia", "Bakery", "400g", 55.0, 55.0, 25, "bread brown wheat bakery healthy", "Nutritious whole wheat brown bread 400g"),
-        (sid, "Fresh Pav Buns", "Local Bakery", "Bakery", "6 pcs", 30.0, 30.0, 25, "pav bun buns pavbhaji bakery", "Fresh and soft pav buns pack of 6"),
-        (sid, "Farm Fresh White Eggs", "Farm Fresh", "Bakery", "Tray of 6", 45.0, 50.0, 40, "eggs egg anda guddu breakfast", "Nutritious farm fresh protein rich eggs pack of 6"),
-        (sid, "Farm Fresh White Eggs", "Farm Fresh", "Bakery", "Tray of 30", 210.0, 240.0, 15, "eggs egg anda guddu tray wholesale", "Farm fresh eggs complete tray of 30"),
-        # Staples
-        (sid, "Aashirvaad Shudh Chakki Atta", "Aashirvaad", "Staples", "5kg", 245.0, 260.0, 20, "atta wheat flour godhuma pindi roti", "100% whole wheat chakki ground atta 5kg"),
-        (sid, "Aashirvaad Shudh Chakki Atta", "Aashirvaad", "Staples", "10kg", 475.0, 500.0, 15, "atta wheat flour godhuma pindi roti 10kg", "100% whole wheat chakki ground atta 10kg"),
-        (sid, "India Gate Basmati Rice", "India Gate", "Staples", "1kg", 130.0, 145.0, 30, "rice chawal biyyam basmati biryani", "Aromatic long grain basmati rice 1kg"),
-        (sid, "India Gate Basmati Rice", "India Gate", "Staples", "5kg", 590.0, 650.0, 15, "rice chawal biyyam basmati 5kg", "Aromatic long grain basmati rice 5kg"),
-        (sid, "Tata Sampann Toor Dal", "Tata Sampann", "Staples", "1kg", 160.0, 175.0, 25, "dal daal toor kandi pappu pulses lentils", "High protein unpolished toor dal 1kg"),
-        (sid, "Tata Salt Vacuum Evaporated", "Tata", "Staples", "1kg", 28.0, 28.0, 50, "salt namak uppu iodised groceries", "Desh ka namak pure iodised salt 1kg"),
-        (sid, "Fortune Refined Sunflower Oil", "Fortune", "Staples", "1 L", 145.0, 160.0, 30, "oil tel nune sunflower cooking", "Healthy cooking refined sunflower oil 1 litre"),
-        # Fresh Veggies
-        (sid, "Fresh Potatoes", "Farm", "Veggies", "1kg", 35.0, 40.0, 40, "potato aloo bangaladumpa vegetables veggies", "Fresh farm potatoes 1kg"),
-        (sid, "Fresh Red Onions", "Farm", "Veggies", "1kg", 40.0, 45.0, 40, "onion pyaz ullipayalu vegetables veggies", "Fresh crunchy red onions 1kg"),
-        (sid, "Fresh Tomatoes", "Farm", "Veggies", "1kg", 30.0, 35.0, 40, "tomato tamatar tamata vegetables veggies", "Juicy ripe cooking tomatoes 1kg"),
-        (sid, "Fresh Green Chillies", "Farm", "Veggies", "250g", 20.0, 25.0, 30, "chilli mirchi mirapakayalu spicy veggies", "Fresh spicy green chillies 250g"),
-        # Snacks & Beverages
-        (sid, "Maggi 2-Minute Masala Noodles", "Nestle", "Snacks", "4-Pack", 56.0, 60.0, 50, "maggi noodles masala snacks instant", "Favorite instant 2-minute masala noodles 4 pack"),
-        (sid, "Parle-G Gluco Biscuits", "Parle", "Snacks", "250g", 25.0, 25.0, 60, "parleg biscuits chai biscuit snacks", "Classic glucose tea biscuits 250g"),
-        (sid, "Britannia Good Day Butter Cookies", "Britannia", "Snacks", "200g", 35.0, 35.0, 45, "goodday biscuits cookies butter snacks", "Crispy butter rich cookies 200g"),
-        (sid, "Thums Up Charged Cola", "Thums Up", "Beverages", "750ml", 45.0, 45.0, 30, "thumsup cold drink soda soft drink cola", "Refreshing strong cola drink 750ml pet bottle"),
-        (sid, "Coca Cola", "Coca Cola", "Beverages", "750ml", 45.0, 45.0, 30, "coke cocacola cold drink soda beverage", "Chilled original taste coca cola 750ml"),
-        (sid, "Tata Tea Gold Leaf Tea", "Tata Tea", "Beverages", "500g", 310.0, 330.0, 20, "tea chai patti tea powder beverages", "Rich aroma premium black tea 500g"),
-    ]
     with tx() as c:
-        for p in example_products:
-            c.execute(
-                "INSERT INTO products(shop_id, name, brand, category, variant, price, mrp, stock, keywords, description, active, created_at) "
-                "VALUES(?,?,?,?,?,?,?,?,?,?,1,?)",
-                (*p, now())
-            )
+        _ensure_shop_products(c, sid)
 
     from .auth import hash_password
     pwd = "password123"
